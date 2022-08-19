@@ -1,5 +1,5 @@
 <?php
-require_once "ShopProduct.php";
+require_once("ShopProduct.php");
 
 class CdProduct extends ShopProduct {
 

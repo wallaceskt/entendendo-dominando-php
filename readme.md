@@ -238,29 +238,114 @@ Definir a propriedade `$products` como privada torna impossível para o código 
 
 ### Recursos avançados
 
+#### Métodos e propriedades estáticos
 
-### Ferramentas de objetos
+Até aqui ficou caracterizado que as classes são como modelos a partir dos quais os objetos são produzidos e os objetos como componentes ativos; elementos cujos métodos chamamos e cujas propriedades acessamos. É possível deduzir que a ação na programação orientada a objetos deve ser encontrada pelas instâncias das classes. As classes, afinal, são apenas modelos para objetos.
 
+Na verdade, não é tão simples. Pode-se acessar tanto métodos quanto propriedades no contexto de uma classe, e não de um objeto. Tais métodos e propriedades são "estáticos" e devem ser declarados como tais usando a palavra-chave `static`. Veja:
 
-### Objetos e projetos
+```php
+class StaticExemple {
+    static public $aNum = 0;
 
-## Padrões
-- O que são padrões de projeto?
-- Por que usá-los?
-- Alguns princípios sobre padrões
-- Gerando objetos
-- Projetando relações de objetos
+    static public function sayHello() {
+        print "Hello";
+    }
+}
+```
 
-## Prática
-- A boa (e a má) prática
-- Uma introdução ao PEAR
-- Gerando documentação com o phpDocumentor
-- Controle de versões com CVS
-- Construção automática com Phing
+Devido ao fato de acessar um elemento estático por meio de uma classe, e não de uma instância, não há necessidade de uma variável que referencie um objeto. Ao contrário, usa o nome da classe com `::`. Veja:
 
-## Conclusão
-- Objetos, padrões e prática
+```php
+print StaticExemple::$aNum;
+print StaticExemple::sayHello();
+```
 
-## Apêndices
-- Referências
-- Uma analisador simples
+Para acessar um método ou propriedade estática a partir do interior de uma mesma classe (e não da filha), usa-se a palavra-chave `self`; `self` é para as classes o que a pseudo-variável `$this` é para objetos. Assim, de fora da classe `StaticExemple` acessa-se a propriedade `$aNum` usando seu nome de classe.
+
+De dentro da classe `StaticExemple` pode-se usar a palavra-chave `self`:
+
+```php
+class StaticExemple {
+    static public $aNum = 0;
+
+    static public function sayHello() {
+        self::$aNum++;
+        print "Hello (" . self::$aNum . ")\n";
+    }
+}
+```
+
+Por definição, métodos estáticos não são chamados no contexto de um objeto. Daí, não poder usar a pseudo-variável `$this` dentro de um método estático sem causar um erro fatal.
+
+A razão do uso de um método ou propriedade estática consiste:
+- primeiro, no fato de que eles estão disponíveis a partir de qualquer lugar no script (presumindo que se tenha acesso à classe). Isso significa que se pode acessar a funcionalidade sem precisar passar uma instância de classe de objeto para objeto, ou, pior ainda, armazenar uma instância em uma variável global.
+- segundo, no fato de uma propriedade estática ficar disponível a todas as instâncias de uma classe, de forma que se possa configurar os valores que quiser, desde que fiquem disponíveis para todos os membros de um tipo.
+- finalmente, no fato de que não necessita de uma instância para acessar uma propriedade ou método estático pode evitar que se instancie um objeto apenas para obter uma simples função.
+
+#### Propriedades constantes
+
+Algumas propriedades nnao podem ser alteradas. Sinalizações de erro e de status, muitas vezes, serão codificadas explicitamente nas suas classes. Embora elas devam ser pública e estaticamente disponíveis, o código cliente não deve alterá-las.
+
+O PHP 5 permite que se defina propriedades constantes dentro de uma classe. Da mesma forma que é feito com constantes globais, constantes de classes não podem ser alteradas assim que estiverem configuradas. Uma propriedade constante é declarada com a palavra-chave `const`. As constantes não são prefixadas com um sinal de cifrão, como as propriedades regulares. Por convenção, elas são, muitas vezes, nomeadas usando apenas letras maiúsculas:
+
+```php
+class ShopProduct {
+    const AVAILABLE = 0;
+    const OUT_OF_STOCK = 1;
+    // ...
+```
+
+Propriedades constantes podem conter apenas valores primitivos. Um objeto não pode ser atribuído a uma constante. As constantes são acessadas por meio da classe, e não por uma instância. Refere-se a uma constante sem um sinal de cifrão:
+
+```php
+print ShopProduct::AVAILABLE;
+```
+
+Usa-se constantes quando sua propriedade precisa estar disponível por todas as instâncias de uma classe e quando o valor da propriedade precisa ser estabelecido e não mudar.
+
+#### Classes abstratas
+
+Uma classe abstrata não pode ser instanciada. Em vez disso, ela define (e, opcionalmente) a interface de qualquer classe que possa estendê-la.
+
+Uma classe abstrata é definida com a palavra-chave `abstract`. Exemplo:
+
+```php
+abstract class ShopProductWriter {
+    // ...
+}
+```
+
+Na maioria dos casos, uma classe abstrata terá pelo menos um método abstrato. Estes são declarados mais uma vez com a palavra-chave `abstract`. Um método abstrato não pode ter uma implementação. Ele é declarado como normal, mas termina com um ponto e vírgula, e não com um corpo de método. Exemplo:
+
+```php
+abstract class ShopProductWriter {
+    // ...
+    abstract public function write();
+}
+```
+
+Na criação de um método abstrato, assegura-se que uma implementação estará disponível em todas as classes-filhas concretas, mas com os detalhes dessa implementação indefinidos.
+
+Assim, qualquer classe que estenda uma classe abstrata deve implementar todos os métodos abstratos ou deve, ela mesma, ser declarada como abstrata. Uma classe que a estenda é responsável por mais do que simplesmente implementar um método abstrato. Ao fazê-lo, ela deve reproduzir a assinatura do método. Isso significa que o controle de acesso do método implementado não pode ser mais rigoroso do que o do método abstrato. O método implementado também deve requerer o mesmo número de argumentos do método abstrato, reproduzindo todas as dicas de tipos de classe. Exemplo:
+
+```php
+abstract class ShopProductWriter {
+    // ...
+    abstract public function write();
+}
+
+class XmlProductWriter extends ShopProductWriter {
+    // ...
+    public function write() {
+        // ...
+    }
+}
+
+class TextProductWriter extends ShopProductWriter {
+    // ...
+    public function write() {
+        // ...
+    }
+}
+```
