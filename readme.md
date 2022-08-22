@@ -349,3 +349,462 @@ class TextProductWriter extends ShopProductWriter {
     }
 }
 ```
+
+#### Interfaces
+
+Enquanto as classes abstratas permitem o fornecimento de alguma medida de implementação, as interfaces são modeos puros. Uma interface só pode definir funcionalidade, nunca pode implementá-la. Uma interface é declarada com a palavra-chave `interface`. Ela pode conter declarações de propriedades e métodos, mas não corpos de métodos. Exemplo:
+
+```php
+interface Chargeable {
+    public function getPrice();
+}
+```
+
+Qualquer classe que incorpore essa interface compromete-se a implementar todos os métodos que ela definir e deve ser declarada como abstrata.
+
+Uma classe pode implementar uma interface usando a palavra-chave `implements` na sua declaração. Exemplo:
+
+```php
+class ShopProduct implements Chargeable {
+    // ...
+    public function getPrice() {
+        // ...
+    }
+    // ...
+}
+```
+
+A implementação de uma interface pode ser útil pelo tipo. Uma implementação de classe recebe o tipo da classe que ela estende e a interface que ela implementa. Assim, uma classe `CdProduct` pertence a:
+
+```
+CdProduct
+ShopProduct
+Chargeable
+```
+
+Uma classe pode estender uma superclasse e implementar qualquer número de interfacer. A cláusula `extends` deve preceder a cláusula `implements`:
+
+```php
+class Consultancy extends TimedService implements Bookable, Chargeable {
+    // ...
+}
+```
+
+Múltiplas interfaces seguem a palavra-chave `implements` em uma lista separada por vírgulas.
+
+PHP suporta apenas a herança de uma única mãe, de modo que a palavra-chave `extends` só pode preceder um único nome de classe.
+
+#### Manipulação de erros
+
+##### Exceções
+
+Exceções abordam todas as questões que levantamos até agora.
+
+Uma exceção é um objeto especial, instanciado a partir da classe interna `Exception` (ou de uma classe derivada). Objetos do tipo `Exception` são projetados para armazenar e relatar informações sobre erros.
+
+O construtor da classe `Exception` recebe dois argumentos opcionais, uma string de mensagem e um código de erro. A classe fornece alguns métodos úteis para analisar condições de erro, descritos na tabela abaixo:
+
+| Método | Descrição |
+| ---------- | ---------- |
+| getMessage() | Obtém a string da mensagem passada para o construtor. |
+| getCode() | Obtém o código do tipo inteiro passado para o construtor. |
+| getFile() | Obtém o arquivo no qual a exceção foi gerada. |
+| getTrace() | Obtém uma matriz multidimensional registrando as chamadas ao método que levaram à exceção, incluindo método, classe, arquivo e dados de argumentos. |
+| getTraceAsScript() | Obtém uma versão string dos dados retornados por `getTrace()`. |
+| __toString() | Chamado automaticamente quando o objeto `Exception` é usado no contexto de string. Retorna uma string descrevendo os detalhes da exceção. |
+
+A classe `Exception` é fantasticamente útil para fornecer notificação de erros e informações para depuração (os métodos `getTrace()` e `getTraceAsString` são especialmente úteis quanto a isso).
+
+###### Gerando uma exceção
+
+A palavra-chave `throw` é usada com um objeto `Exception`. Ela para a execução do método corrente e passa a responsabilidade pela manipulação de erros de volta ao código solicitante. Exemplo:
+
+```php
+public function connect() {
+    $this->db = Connect::getInstance();
+    if (Connect::isError($this->db)) {
+        throw new Exception("A connection error occured");
+    }
+}
+```
+
+Ao chamar um método que talvez gere uma exceção, pode-se envolver sua chamada em uma cláusula `try`. Uma cláusula `try` é criada em torno da palavra-chave `try` seguida por chaves. Auma cláusula `try` deve ser seguida por pelo menos uma cláusula `catch` na qual pode-se manipular quaisquer erros, desta forma:
+
+```php
+try {
+    // ...
+} catch (Exception $e) {
+    die($e->__toString());
+}
+```
+
+Quando uma exceção é gerada, a cláusula `catch` no escopo da solicitação e chamada. O objeto `Exception` é automaticamente passado para a variável do argumento.
+
+Assim como a execução é parada dentro do método que gera a exceção, quando uma ocorre, também o é dentro da cláusula `try`; o controle passa diretamente para a cláusula `catch`.
+
+###### Subclasses de exceções
+
+Pode-se criar classes que estendam `Exception` da mesma forma que se faz com qualquer classe definida pelo usuário. Existem duas razões:
+
+- estender a funcionalidade da classe.
+- uma classe derivada define um novo tipo de classe que pode ajudar na manipulação de erros.
+
+Pode-se definir quantas cláusulas `catch` precisar para uma declaração `try`. A cláusula `catch` específica depende do tipo da exceção gerada e da dica de tipo de classe na lista de argumentos. Exemplo:
+
+```php
+class DbException extends Exception {
+    // ...
+}
+
+class DbConnectionException extends DbException {}
+class SqlException extends DbException {}
+```
+
+Uma abordagem que pode gerar uma exceção implícita ou escondida tende a dificultar o rastreamento do que está acontecendo no código. Veja:
+
+```php
+// Classe PersonPersist ...
+    public function connect() {
+        $this->db = Connect::getInstance();
+        if (Connect::isError($this->db)) {
+            throw new Exception("A connection error occured");
+        }
+    }
+
+    public function insert(Person $person) {
+        if (empty($this->db)) {
+            $this->connect();
+        }
+
+        // ...
+
+        if (Connect::isError($insert_result)) {
+            throw new SqlException($insert_result);
+        }
+
+        // ...
+    }
+}
+```
+
+Uma outra abordagem é explícita. Usar o par `try/catch` é redundante, mas possui a virtude da clareza. Veja:
+
+```php
+public function insert(Person $person) {
+    try {
+        if (empty($this->db)) {
+            $this->connect();
+        }
+    } catch (DbConnectionException $e) {
+        throw $e;
+    }
+    // ...
+}
+```
+
+Gerando uma de duas possíveis exceções:
+
+```php
+try {
+    $saver = new PersonPersist("sqlite:./persons.db");
+    $saver->insert($person);
+} catch (DbConnectionException $e) {
+    // Erro de conexão:
+    // Talvez tentar novamente com um novo Data Source Name
+    print $e->__toString();
+}
+} catch (SqlException $e) {
+    // Erro durante a inserção
+    // Tabela não existe ou o seu esquema não equivale aos campos
+    print $e->__toString();
+}
+} catch (Exception $e) {
+    // Não deveria ser chamada corretamente
+    print $e->__toString();
+}
+```
+
+A cláusula chamada depende do tipo da exceção gerada. O primeiro equivalente será executado, então, é importante colocar o tipo mais genérico no final e o mais especializado no início.
+
+Uma exceção deve ser gerada quando um método tiver detectado um erro, mas não possuir informação contextual para poder manipulá-la e forma inteligente.
+
+#### Classes e métodos finais
+
+A herança permite enorme flexibilidade dentro de uma hierarquia de classes. Às vezes, no entanto, uma clásse ou método deve permanecer sem mudanças. Se já se tem a funcionalidade definitiva para uma classe, ou método, e sobrescrevê-la pode apenas danificar a perfeição do seu trabalho, talvez precise da palavra-chave `final`, que coloca um final na herança. Uma classe `final` não pode ter subclasses. Menos dramaticamente, um método `final` não pode ser sobrescrito. Exemplo:
+
+```php
+final class Checkout {
+    // ...
+}
+```
+
+Qualquer tentativa de driar uam subclasse da classe `Checkout` causará um erro fatal.
+
+Pode-se relaxar um pouco e declarar um método `final` em `Checkout`, em vez de fazê-lo com a classe inteira. A palavra-chave `final` deve ser colocada na frente de quaisquer modificadores, como `protected` ou `static`.
+
+```php
+class Checkout {
+    final function totalize() {
+        // ...
+    }
+}
+```
+
+Um bom código orientado a objetos tende a enfatizar a interface bem definida. Por trás da interface, entretanto, as implementações muitas vezes variarão. Diferentes classes ou combinações de classes adaptam-se a interfaces comuns, mas se comportam de forma diferente em situações diferentes. Declarando uma classe ou método como `final`, essa flexibilidade é limitada. Contudo, deve-se pensar com cautela antes de declarar algo como `final`.
+
+#### Trabalhando com interceptadores
+
+O PHP fornece métodos interceptadores internos, que podem interceptar mensagens enviadas para métodos e propriedades não definidas. Isso também é conhecido como "sobrecarga", ma, já que esse termo significa algo bastante diferente em Java e C++, melhor falar em termos de interceptação.
+
+O PHP 5 suporta três métodos internos de sobrecarga. Como o `__construct()`, eles são chamados quando as condições corretas são satisfeitas.
+
+| Método | Descrição |
+| ---------- | ---------- |
+| `__get($property)` | Chamado quando uma propriedade indefinida é acessada. |
+| `__set($property, $value)` | Chamado quando um valor é atribuído e uma propriedade indefinida. |
+| `__call($method, $arg_array)` | Chamado quando um método indefinido é habilitado. |
+
+Os métodos `__get()` e `__set()` são projetados para trabalhar com propriedades que não tiverem sido declaradas em uma classe (ou nas suas ancestrais).
+
+O `__get()` é chamado quando o código cliente tenta ler uma propriedade não delcarada. Ele é chamado automaticamente com um único argumento string contendo o nome da propriedade que o cliente estiver tentando acessar. O que quer que se retorne do método `__call()` será enviado para o cliente como se a propriedade alvo existir com esse valor.
+
+```php
+class Person {
+    function __get($property) {
+        $method = "get{$property}";
+        if (method_exists($this, $method)) {
+            return $this->$method;
+        }
+    }
+
+    function getName() {
+        return "Bob";
+    }
+
+    function getAge() {
+        return 43;
+    }
+}
+```
+
+O método `__set()` é chamado quando o código cliente tenta atribuir a uma propriedade não definida. Ele recebe dois argumentos: o nome da propriedade e o valor que o cliente está tentando gravar. Pose-se, então, decidir como trabalhar com esses argumentos. Veja:
+
+```php
+class Person {
+    private $_name;
+    private $_age;
+
+    function __set($property, $value) {
+        $method = "set{$property}";
+        if (method_exists($this, $method)) {
+            return $this->$method($value);
+        }
+    }
+
+    function getName($name) {
+        $this->_name = strtoupper($name);
+    }
+
+    function getAge($age) {
+        $this->_age = strtoupper($age);
+    }
+}
+```
+
+O método `__call()` é, provavelmente, o mais útil de todos os métodos interceptadores. Ele é chamado quando um método não definido é habilitado pelo código cliente. O `__call()` é chamado com o nome do método e uma matriz que armazena todos os argumentos passados pelo cliente. Qualquer valor que você retorne do método `__call()` é retornado para o cliente como se tivesse sido feito pelo método chamado.
+
+O método `__call()` pode ser útil para a delegação. Delegação é o mecanismo por meio do qual um objeto passa chamadas de métodos. Ele é semelhante à herança no sentido em que uma classe-filha passa uma chamada de método para sua implementaçnao ancestral. Com herança, o relacionamento entre filha e mãe é fixo, então, o fato de que você pode alternar o objeto recebido em tempo de execução significa que a delegação pode ser mais flexível do que a herança. Veja uma classe para formatar informações da classe `Person`:
+
+```php
+class PersonWriter {
+    function writeName(Person $p) {
+        print $p->getName() . "\n";
+    }
+
+    function writeAge(Person $p) {
+        print $p->getAge() . "\n";
+    }
+}
+```
+
+Veja a implementação da classe `Person`:
+
+```php
+class Person {
+    private $writer;
+
+    function __construct(PersonWriter $writer) {
+        $this->writer = $writer;
+    }
+
+    function __call($methodname, $args) {
+        if (method_exists($this->writer, $methodname)) {
+            return $this->writer->$methodname($this);
+        }
+    }
+
+    function getName() {return "Bob";}
+    function getNAge() {return 44;}
+}
+```
+
+A classe `Person` demanda um objeto `PersonWriter` como argumento do construtor e o armazena em uma variável de propriedade. No método `__call()`, usa-se o argumento `$methodname` fornecido, testando um método do mesmo nome no objeto `PersonWriter` que armazenamos. Se o método for encontrado, delega-se a chamada do método ao objeto `PersonWriter`, passando a instância corrente para ele (na pseudo-variável `$this`). Assim, o cliente faz a chamada a `Person`:
+
+```php
+$person = new Person(new PersonWriter());
+$person->writeName();
+```
+
+O método `__call()` é chamado. Um método chamado `writeName()` é encontrado no seu objeto `PersonWriter` e o é chamado. Isso evita que o método delegado seja chamado manualmente. Veja:
+
+```php
+function writeName() {
+    $this->writer->writeName($this);
+}
+```
+
+A classe `Person` ganhou dois novos métodos. Embora a delegação automatizada possa economizar  muito trabalho, caso se precise delegar para muitos métodos, há um custo quanto à clareza. Apresenta-se ao mundo uma interface dinâmica que resistirá à reflexão (o exame de tempo de execução de aspectos de classe) e não será clara para o codificador cliente à primeira vista. Os métodos interceptadores possuem seu lugar, mas devem ser usados com cautela. As classes que se baseiam neles devem documentar esse fato com muita clareza.
+
+#### Definindo métodos destrutores
+
+O método `__destruct()` é chamado antes de um objeto sofrer a coleta de lixo, ou seja, antes de ser apagado da memória. Esse método pode ser usado para executar qualquer limpeza que possa ser necessária.
+
+Numa classe que grava a si mesma num banco de dados, quando for solicitada, pode-se usar o método `__destruct()` para assegurar que essa instância grave seus dados quando for apagada:
+
+```php
+class Person {
+    // ...
+    function __destruct() {
+        if (!empty($this->id)) {
+            // save Person data
+            print "saving person\n";
+        }
+    }
+}
+```
+
+O método `__destruct()` é chamado sempre que um objeto for removido da memória. Isso acontecerá quando a função `unset()` com o objeto em questão for chamada ou quando nenhuma referência ao objeto existir no processo. Exemplo:
+
+```php
+$person = new Person("Bob", 44);
+$person->setId(343);
+unset($person);
+// saída:
+// gravando $person
+```
+
+#### Copiando objetos com __clone()
+
+O PHP 5 fornece a palavra-chave `clone` apenas para as ocasiões em que houver a necessidade de se obter uma cópia de um objeto, em vez de uma referência a ele.
+
+O `clone` opera sobre uma instância de objeto, produzindo uma cópia por valor:
+
+```php
+class Person {}
+$p1 = new Person("Bob", 44);
+$p2 = clone $p1;
+// Agora, $p2 e $p1 são 2 objetos distintos
+```
+
+Não é tudo. A cópia do objeto `$p1` conteria o identificador (a propriedade `$id`) que em uma implementação integral seria usada para localizar o registro em um banco de dados. Uma alteração num objeto afetará o outro, e vice-versa.
+
+Felizmente, pode-se controlar o que é copiado quando um `clone` é chamado sobre um objeto. Isso é feito implementando um método especial chamado `__clone()`. O `__clone()` é chamado automaticamente quando a palavra-chave é chamada em um objeto.
+
+Quando `__clone()` é implementado é importante compreender que ele é executado sobre o objeto copiado e não sobre o original. 
+
+```php
+class Person {
+    // ...
+    function __clone() {
+        $this->id = 0;
+    }
+}
+```
+
+Quando `clone` é chamado sobre um objeto `Person`, uma nova cópia superficial é feita, e seu método `__clone()` é chamado. Isso significa que qualquer coisa que se faça em `__clone()` sobrescreve a cópia padrão já feita. No exemplo, o `$id` do objeto copiado será zero:
+
+```php
+$person = new Person("Bob", 44);
+$person->setId(343);
+$person2 = clone $person;
+// $person2 :
+//  name: Bob
+//  age: 44
+//  id: 0
+```
+
+Uma cópia superficial assegura que propriedades primitivas sejam copiadas do objeto antigo para o novo. Propriedades de objetos são copiadas por referência, o que pode não ser o que se espera ao clonar um objeto. Considere-se que o objeto `Person` tenha uma propriedade de objeto `Account`. Esse objeto armazena um saldo que se queira copiar para o objeto clonado. O que não se quer é que ambos os objetos `Person` armazenem referências para a mesma conta:
+
+```php
+class Account {
+    public $balance;
+    function __construct($balance) {
+        $this->balance = $balance;
+    }
+}
+
+class Person {
+    private $name;
+    private $age;
+    private $id;
+    private $account;
+
+    function __construct($name, $age, Account $account) {
+        $this->name = $name;
+        $this->age = $age;
+        $this->account = $account;
+    }
+
+    function setId($id) {
+        $this->id->$id;
+    }
+
+    function __clone() {
+        $this->id = 0;
+    }
+}
+
+$person = new Person("Bob", 44, new Account(200));
+$person->setId(343);
+$person2 = clone $person;
+
+// dá a $person algum dinheiro
+$person->account->balance += 10;
+// $person2 vê o crédito também
+print $person2->account->balance;
+
+// saída:
+// 210
+```
+
+Para que uma propriedade de objeto não seja compartilhada após uma operação de clonagem é necessário cloná-la explicitamente no método `__clone()`:
+
+```php
+function __clone() {
+    $this->id = 0;
+    $this->account = clone $this->account;
+}
+```
+
+#### Definindo valores de strings para seus objetos
+
+Implementando o método `__toString()`, pode-se controlar a forma pela qual seus objetos representam a si próprios ao serem imprimidos. O `__toString()` deve ser escrito para retornar um valor string. O método é chamado automaticamente quando seu objeto é passado para `print` ou `echo` e seu valor de retorno é subtituído. Adicionando uma versão `__toString()` à uma classe `Person` mínima:
+
+```php
+class Person {
+    function getName() {return "Bob";}
+    function getAge() {return 44;}
+    function __toString() {
+        $desc = $this->getName();
+        $desc .= " (age " . $this->getAge() . ")";
+        return $desc;
+    }
+}
+
+$person = new Person();
+print $person;
+// saída:
+// Bob (age 44)
+```
+
+O método `__toString()` é especialmente para registros e relatórios de erros e para classes cuja tarefa principal seja mostrar informaçnoes. A classe `Exception`, por exemplo, resume os dados da exceção no seu método `__toString()`.

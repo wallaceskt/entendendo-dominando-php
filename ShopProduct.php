@@ -1,9 +1,10 @@
 <?php
 // require_once("PathPear.php");
 require_once("DB.php");
+require_once("Chargeable.php");
 // require_once("/Users/wallaceoliveira/pear/share/pear/DB.php");
 
-class ShopProduct {
+class ShopProduct implements Chargeable {
 
     private $title = "default product";
     private $producerMainName = "main name";
@@ -61,14 +62,15 @@ class ShopProduct {
     public static function getInstance($id, PDO $db) {
         $stmt = $db->prepare("SELECT * FROM products WHERE id = :id");
         $stmt->bindParam(':id', $id);
-        $result = $stmt->execute();
+        $stmt->execute();
+        // $result = $stmt->execute();
 
-        if (Connect::isError($result)) {
-            $erro = "[ERRO {$db->errorInfo()[0]}] ";
-            $erro .= $db->errorInfo()[2];
+        // if (Connect::isError($result)) {
+        //     $erro = "[ERRO {$db->errorInfo()[0]}] ";
+        //     $erro .= $db->errorInfo()[2];
 
-            die($erro);
-        }
+        //     die($erro);
+        // }
 
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
