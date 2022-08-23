@@ -23,9 +23,30 @@ class Person {
     }
 
     function getName() {return "Bob";}
-    function getNAge() {return 44;}
+    function getAge() {return 44;}
 }
 
 $person = new Person(new PersonWriter());
 $person->writeName();
+
+// A função retorna true se o objeto for uma instância do tipo Person
+if (is_a($person, 'Person')) {
+    print "<br>\$person is a Person object\n";
+}
+
+if (get_class($person) == 'Person') {
+    print "<br>\$person is a Person object\n";
+}
+
+if ($person instanceof Person) {
+    print "<br>\$person is a Person object\n";
+}
+
+$method = "getAge";
+
+// print $person->$method();
+
+if (in_array($method, get_class_methods('Person'))) {
+    print $person->$method(); // invoke the method
+}
 ?>

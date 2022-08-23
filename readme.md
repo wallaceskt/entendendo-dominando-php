@@ -808,3 +808,386 @@ print $person;
 ```
 
 O método `__toString()` é especialmente para registros e relatórios de erros e para classes cuja tarefa principal seja mostrar informaçnoes. A classe `Exception`, por exemplo, resume os dados da exceção no seu método `__toString()`.
+
+### Ferramentas de objetos
+
+#### As funções de classes e objetos
+
+O PHP fornece um conjunto poderoso de funções para testar classes e objetos.
+
+##### Procurando classes
+
+```php
+// tasks/Task.php
+class Task {
+    function doSpeak() {
+        print "hello";
+    }
+}
+
+// TaskRuner.php
+$classname = "Task";
+$path = "task/$classname.php";
+if (!file_exists($path)) {
+    throw new Exception("No such file as $path");
+}
+
+require_once($path);
+if (!class_exists($classname)) {
+    throw new Exception("No such class as $path");
+}
+
+$myObj = new $classname();
+$myObj->doSpeak();
+```
+
+##### Adquirindo conhecimentos sobre um objeto ou classe
+
+Pode-se restringir os tipos de argumentos de métodos usando dicas de tipos de classes. Mesmo com essa ferramenta, nem sempre se opde ter certeza do tipo de um objeto.
+
+Há um número de ferramentas básicas disponíveis para verificar o tipo de um objeto. Em primeiro lugar, pode-se verificar a classe de um objeto com a função `get_class()`. Ela recebe qualquer objeto como argumento e retorna seu nome de classe na forma de string:
+
+```php
+$product = getProduct();
+if (get_class($product) == 'CdProduct') {
+    print "\$product is a CdProduct object\n";
+}
+```
+
+A função `get_class()` é uma ferramenta muito específica. É possível querer saber apenas se um objeto pertence a uma determinada família, no caso `ShopProduct`, mas não se sua classe real seria `BookProduct` ou `CdProduct`. A função `is_a()`, que requer um objeto e o nome de uma classe ou interface, retorna `true` se o objeto for uma instância de determinado tipo. Veja:
+
+```php
+$product = getProduct();
+if (is_a($product, 'ShopProduct')) {
+    print "\$product is a ShopProduct object\n";
+}
+```
+
+O mecanismo Zend 2 suporta a palavra-chave `instanceof`. Esse operador funciona com dois operandos, o objeto a ser testado, à esquerda da palavra-chave, e o nome da classe ou interface, à direita:
+
+```php
+$product = getProduct();
+if ($product instanceof ShopProduct) {
+    print "\$product is a ShopProduct object\n";
+}
+```
+
+Prefira usa `instanceof` no lugar de `is_a()`.
+
+##### Adquirindo conhecimentos sobre métodos
+
+Pode-se obter uma lista de todos os métodos de uma classe usando a função `get_class_methods()`. Ela quer um nome de classe e retorna uma matriz com nomes de todos os métodos da classe:
+
+```php
+print_r(get_class_methods('CdProduct'));
+/*
+Array
+(
+    [0] => __construct
+    [1] => getPlayLength
+    [2] => getSummaryLine
+    [3] => getProducerFirstName
+    [4] => getProducerMainName
+    [5] => setDiscount
+    [6] => getDiscount
+    [7] => getTitle
+    [8] => getProce
+    [9] => getProducer
+)
+*/
+```
+
+Recebendo um nome de método em uma variável string e chamando ,dinamicamente, com um objeto:
+
+```php
+$product = getProduct(); // obtém um objeto
+$method = "getTitle"; // define um nome de objeto
+print $product->$method(); // chama o método
+```
+
+Isso pode ser perigoso, pois o método pode não existir. Veja uma forma de testar se o método existe:
+
+```php
+if (in_array($method, get_class_methods($product))) {
+    print $product->$method(); // chama o método
+}
+```
+
+Verifica se o nome do método existe na matriz retornada por `get_class_methods()` antes de chamá-la. O PHP fornece mais ferramentas especializadas com esse propósito: 
+
+- `is_callable()`: é a mais sofisticada. ELa recebe uma variável string representando um nome de função como primeiro argumento e retorna `true` se a função existir e puder ser chamada. Para aplicar o mesmo teste a um método, deve-se passar uma matriz no lugar do nome da função. A matriz deve conter um objeto ou nome de classe como seu primeiro elemento e o nome do método a ser verificado como seu segundo elemento. A função retornará `true` se o método existir. A `is_callable()` opcionalmente recebe um segundo argumento: um booleano. Se configurá-lo como `true`, a função verificará apenas a sintaxe do nome de método ou da função, e não a sua existência. Exemplo:
+
+```php
+if (is_callable(array($product, $method))) {
+    print $product->$method(); // invoke method
+}
+```
+
+- `method_exists()`: requer um objeto e um nome de método e retorna `true` se o dado método existir na classe do objeto:
+
+```php
+if (method_exists($product, $method)) {
+    print $product->$method(); // invoke method
+}
+```
+
+O método `method_exists()` não recebe um nome de classe como seu primeiro argumento; deve-se usar um objeto. Caso não tenha um objeto, pode-se contornar essa limitação usando `get_class_methods()` ou `is_callable()`, pois ambas recebem nomes de classes:
+
+```php
+if (in_array($method, get_class_methods('CdProduct'))) {
+    // ...
+}
+```
+
+##### Adquirindo conhecimentos sobre propriedades
+
+As propriedades de uma classe também podem ser consultadas. A função `get_class_vars()` requer um nome de classe e retorna uma matriz associativa. A matriz retornada contém nomes de campos, como suas chaves e valores de campos.
+
+```php
+print_r(get_class_vars('CdProduct'));
+Array
+(
+    [playLength] => 0
+    [coverUrl] =>
+    [price] =>
+)
+```
+
+Essa função retorna apenas as propriedades visíveis à classe. Portanto, é importante ter atenção à privacidade. Ela não informa, entretanto, quais propriedadesão acessíveis, informando as propriedades `protected`, `private` e `public`, sem distinção.
+
+##### Adquirindo conhecimentos sobre herança
+
+As funções de classe também permite mapear relacionamentos de herança. Pode-se encontrar a classe-mãe de uma classe com `get_parent_class()`. Essa função requer um objeto ou 
+um nome de classe e retorna o nome da superclasse, se houver alguma. Se não houver, retorna `false`:
+
+```php
+print get_parent_class('CdProduct');
+// ShopProduct
+```
+
+Pode-se testar se uma classe é filha de outra u
+sando a função `is_subclass_of()`. Ela requer um objeto-filho e o nome da classe-mãe. A função retorna `true` se o segundo argumento for uma superclasse do primeiro:
+
+```php
+$product = getProduct(); // obtém um objeto
+if (is_subclass_of($product, 'ShopProduct')) {
+    print "CdProduct is a subclass of ShopProduct\n";
+}
+```
+
+##### Chamada de método
+
+O PHP oferece o método `call_user_func()` que tem a finalidade de usar uma string para chamar um método dinamicamente. Ele pode chamar métodos e funções. Para chamar uma função, ele requer uma única string, como seu primeiro argumento:
+
+```php
+$returnVal = call_user_func("myFunction");
+```
+
+Para chamar um método, ele requer uma matriz. O primeiro elemento deve ser um objeto e o segundo, o nome do método a ser chamado:
+
+```php
+$returnVal = call_user_func(array($myObj, "methodName"));
+```
+
+Pode-se passar quaisquer argumentos que o método ou função requeira em argumentos adicionais para `call_user_func()`:
+
+```php
+$product = getProduct(); // obtém um objeto
+call_user_func(array($product, 'setDiscount'), 20);
+// equivale a: $product->setDiscount(20);
+```
+
+Muito mais impressionante, porém, é a função relacionada `call_user_func_array()`. Ela opera da mesma forma que `call_user_func()` no que diz respeito à seleção do método ou função alvo. Crucialmente, entretanto, ela recebe quaisquer argumentos requeridos pelo método alvo na forma de uma matriz.
+
+```php
+function __call($method, $args) {
+    if (method_exists($this->thirdpartyShop, $method)) {
+        return call_user_func_array(
+            array($this->thirdpartyShop->$method, $args);
+        );
+    }
+}
+```
+
+#### A API de reflexão
+
+A API de reflexão consiste em classes internas para analisar propriedades, métodos e classes. É semelhante, em alguns aspectos, a funções de objetos existentes, como `get_class_vars()`, mas é mais flexível e fornece maiores detalhes. Também é projetada para trabalhar com recursos orientados a objetos, como controle de acesso e classes abstratas.
+
+##### Iniciando
+
+A API de reflexão pode ser usada para examinar mais do que classes. A tabela abaixo lista algumas das classes da API:
+
+| Classe | Descrição |
+| ---------- | ---------- |
+| `Reflection` | Fornece um método estático `export()` para resumir informações sobre classes |
+| `ReflectionClass` | Ferramentas e informações sobre classes |
+| `ReflectionMethod` | Ferramentas e informações sobre métodos de classes |
+| `ReflectionParameter` | Informações sobre argumentos de métodos |
+| `ReflectionProperty` | Informações sobre propriedades de classes |
+| `ReflectionFunction` | Ferramentas e informações sobre funções |
+| `ReflectionExtension` | Informações sobre extensão PHP |
+| `ReflectionException` | Uma classe de erros |
+
+As classes da API de reflexão fornecem acesso, em tempo de execução, e sem precedentes, sobre os objetos, funções e extensões nos scripts.
+
+A preferência de uso da API de reflexão está com funções de objetos e classes. É indispensável como derramenta para testar classes. Talvez queira gerar diagramas de classes ou documentação, por exemplo, ou ainda, gravar as informações dos objetos em um banco de dados, e examinar os métodos de acesso de um objeto para extrair nomes de campos. Até construir `framework` que chame métodos de classes de acordo com um esquema de nomeclatura pode ser uso da reflexão. Exemplo:
+
+O cons trutor de `ReflectionClass` recebe um nome de classe como seu único argumento:
+
+```php
+$prod_class = new ReflectionCLass('CdProduct');
+Reflection::export($prod_class);
+
+// veja um trecho da saída gerada pela chamada Reflectio::export($prod_class);
+Class [<user> class CdProduct extends ShopProduct ] {
+    @@ /home/projects/sp/ShopProduct.php 59-80
+
+    - Constants [0] {
+    }
+
+    - Static properties [0] {
+    }
+
+    - Static methods [0] {
+    }
+
+    - Properties [3] {
+        Property [<default> private $playLength]
+        Property [<default> public $coverUrl]
+        Property [<default> protected $price]
+    }
+
+    - Methods [11] {
+        Method [<user> <ctor> public method __construct] {
+            @@ /home/projects/sp/ShopProduct.php 63-68
+
+            - Parameters [5] {
+                Parameter #0 [$title]
+                Parameter #1 [$firstName]
+                Parameter #2 [$mainName]
+                Parameter #3 [$price]
+                Parameter #4 [$playLength]
+            }
+        }
+
+        Method [<user> public method getPlayLength] {
+            @@ /home/projects/sp/ShopProduct.php 70-72
+        }
+
+        Method [<user> public method getSummaryLine] {
+            @@ /home/projects/sp/ShopProduct.php 74-78
+        }
+}
+```
+
+A função `var_dump()` é uma ferramenta de propósito geral, para resumir dados. Juntamente com `print_r()`, seu primo, snao ferramentas fantasticamente convenientes para expor os dados nos scripts. Para classes e funções, a API de reflexão leva tudo, porém, a um novo nível.
+
+###### Um exemplo
+
+```php
+class Person {
+    public $name;
+    function __construct($name) {
+        $this->name = name;
+    }
+}
+
+interface Module {
+    function execute();
+}
+
+class FtpModule implements Module {
+    function setHost($host) {
+        print "FtpModule::setHost(): $host\n";
+    }
+
+    function setUser($user) {
+        print "FtpModule::setUser(): $user\n";
+    }
+
+    function execute() {
+        // do things
+    }
+}
+
+class PersonModule implements Module {
+    function setPerson(Person $person) {
+        print "PersonModule::setPerson(): {$person->name}\n";
+    }
+
+    function execute() {
+        // do things
+    }
+}
+
+class ModuleRunner {
+    private $configData = array(
+        "PersonModule" => array('person' => 'Bob'),
+        "FtpModule" => array('host' => 'exemple.com', 'user' => 'anon')
+    );
+    private $modules = array();
+    
+    function init() {
+        $interface = new ReflectionClass('Module');
+        foreach ($this->configData as $modulename => $params) {
+            $module_class = new ReflectionClass($modulename);
+            if (!$module_class->isSubclassOf($interface)) {
+                throw new Exception("unknown module type: $modulename");
+            }
+            $module = $module_class->newInstance();
+            foreach ($module_class->getMethods() as $method) {
+                $this->handleMethod($module, $method, $params);
+                // we cover handleMethod() in a future listing!
+            }
+            array_push($this->modules, $module);
+        }
+    }
+
+    function handleMethod(Module $module, ReflectionMethod $method, $params) {
+        $name = $method->getName();
+        $args = $method->getParameters();
+
+        if (count($args) != 1 || substr($name, 0, 3) != "set") {
+            return false;
+        }
+
+        $property = strtolower(substr($name, 3));
+        if (!isset($params[$property])) {
+            return false;
+        }
+
+        $arg_class = $args[0]->getClass();
+        if (empty($arg_class)) {
+            $method->invoke($module, $params[$property]);
+        } else {
+            $method->invoke($module, $arg_class->newInstance($params[$property]));
+        }
+    }
+}
+
+$test = new ModuleRunner();
+$test->init();
+```
+
+### Objetos e projetos
+
+## Padrões
+- O que são padrões de projeto?
+- Por que usá-los?
+- Alguns princípios sobre padrões
+- Gerando objetos
+- Projetando relações de objetos
+
+## Prática
+- A boa (e a má) prática
+- Uma introdução ao PEAR
+- Gerando documentação com o phpDocumentor
+- Controle de versões com CVS
+- Construção automática com Phing
+
+## Conclusão
+- Objetos, padrões e prática
+
+## Apêndices
+- Referências
+- Uma analisador simples
