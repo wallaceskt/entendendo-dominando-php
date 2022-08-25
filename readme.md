@@ -1171,6 +1171,406 @@ $test->init();
 
 ### Objetos e projetos
 
+#### Definindo o projeto do código
+
+Um "projeto de código" relaciona-se à definição de um sistema: a determinação dos requisitos de um sistema, seu escopo e seus objetivos. O que o sistema faz? Para quem ele precisa fazer isso? Quais são as saídas do sistema? Elas satisfazem às necessidades declaradas? Em um nível mais baixo, o projeto pode ser considerado como o sentido do processo por meio do qual você define os participantes de um sistema e organiza seus relacionamentos. A preocupação aqui vai ser com o segundo sentido: a definição e disposição de classes e objetos.
+
+Então, o que é um participante? Um sistema orientado a objetos é constituído de classes. É importante decidir a natureza desses participantes no sistema. Classes são constituídas de métodos, então, na definição das suas classes, deve-se decidir quais métodos devem ficar juntos. Será visto, entretanto, que as classes são, muitas vezes, combinadas em relacionamentos de herança para se adaptarem a interfaces comuns. São essas interfaces, ou tipos, que devem ser a primeira parada no projeto do sistema.
+
+Há outros relacionamentos que se pode definir para suas classes. É possível criar classes que sejam compostas por outros tipos, ou que gerenciem listas de outras instâncias de tipos. Pode-se projetar classes que, simplesmente, usem outros objetos. Esses relacionamentos de composição, ou uso, são projetados nas suas classes (através de dicas de tipos de classes, por exemplo), mas os relacionamentos reais dos objetos ocorrem em tempo de execução, o que pode adicionar flexibilidade ao projeto. Será visto como modelar esses relacionamentos logo mais.
+
+Como parte do processo de projeto, deve-se decidir quando uma operação deve pertencer a um tipo e quando ela deve pertencer a outra classe usada pelo tipo.
+
+#### Programação procedural e orientada a objetos
+
+Uma diferença do projeto orientado a objetos e do código procedural mais tradicional pode ser encontrada na forma pela qual a responsabilidade é distribuída. O código procedural toma a forma de uma série de comandos sequenciais e chamadas de métodos. O código de controle tende a assumir a responsabilidade por manipular condições diferentes. Esse controle *top-down* pode resultar no desenvolvimento de duplicações e dependências em um projeto. O código orientado a objetos tenta minimizar essas dependências, movendo a responsabilidade pela manipulação de tarefas do código cliente para os objetos do sistema.
+
+Um problema simples será colocado e analisado em termos tanto de código orientado a objetos quanto em procedural, para ilustrar essas questões. O projeto é a construção de uma ferramenta rápida para ler e gravar em arquivos de configuração.
+
+Começando com uma abordagem procedural. Apenas duas funções são necessárias para ler e gravar o texto: `chave:valor`.
+
+```php
+function readParams($sourceFile) {
+    $params = array();
+    // tenta abrir o arquivo $sourceFile e lê-lo linha a linha, procurando pares chave/valor. Constrói uma matriz conforme avança. Finalmente, retorna a matriz para o código de controle.
+    return $params;
+}
+
+function writeParams($params, $sourceFile) {
+    // recebe uma matriz associativa e o caminho para um arquivo-fonte. Percorre a matriz associativa, gravando cada par chave/valor no arquivo.
+}
+
+// Código cliente que trabalha com as funções
+$file = "./param.txt";
+$array['key1'] = "val1";
+$array['key2'] = "val2";
+$array['key3'] = "val3";
+writeParams($array, $file); // matriz gravada no arquivo
+$output = readParams($file); // matriz lida do arquivo
+print_r($output);
+```
+
+Agora, o código vai ter que suportar um formato XML simples:
+
+```xml
+<params>
+    <param>
+        <key>my key</key>
+        <val>my val</val>
+    </param>
+</params>
+```
+
+Acomodar o suporte ao XML ameaça tornar o código muito mais difícil de manter.
+
+```php
+function readParams($source) {
+    $params = array();
+    // fazendo teste para determinar se o arquivo é .XML
+    if (substr($source, -4) == ".xml") {
+        // lê parâmetros XML de source
+    } else {
+        // lê parâmetros texto do source
+    }
+    return $params;
+}
+
+function writeParams($params, $source) {
+    // fazendo teste para determinar se o arquivo é .XML
+    if (substr($source, -4) == ".xml") {
+        // grava parâmetros XML no source
+    } else {
+        // grava parâmetros texto no source
+    }
+}
+```
+
+A ameaça se torna mais real se houver a necessidade de incluir outro formato de parâmetro.
+
+Agora, a abordagem do mesmo problema com uso de classes.
+
+```php
+// classe abstrata que definirá a interface para o tipo
+abstract class ParamHandler {
+    protected $source;
+    protected $params = array();
+
+    function __construct($source) {
+        $this->source = $source;
+    }
+
+    // permite ao usuário adicionar parâmetros à propriedade protegida $params
+    function addParam($key, $val) {
+        $this->params[$key] = $val;
+    }
+
+    // fornece acesso a uma cópia da matriz
+    function getAllParams() {
+        return $this->params;
+    }
+
+    // testa a extensão do arquivo e retorna determinada subclasse, de acordo com os resultados.
+    static function getInstance($filename) {
+        if (substr($filename, -4) == ".xml") {
+            return new XmlParam($filename);
+        }
+        return new TextParam($filename);
+    }
+
+    // dois métodos abstratos que asseguram que quaisquer classes suportarão a interface
+    abstract function write();
+    abstract function read();
+}
+
+// Implementa os métodos write() e read gravando e lendo se o formato for XML
+class XmlParam extends ParamHandler {
+    function write() {
+        // grava XML
+        // usando $this->params
+    }
+
+    function read() {
+        // lê XML
+        // e povoa $this->params
+    }
+}
+
+// Implementa os métodos write() e read gravando e lendo se o formato for texto
+class TextParam extends ParamHandler {
+    function write() {
+        // grava texto
+        // usando $this->params
+    }
+
+    function read() {
+        // lê texto
+        // e povoa $this->params
+    }
+}
+
+// código cliente gravará tanto no formato texto quanto no XML, de forma transparente, e de acordo com a extensão do arquivo
+$test = ParamHandler::getInstance("./params.xml");
+$test->addParam("key1", "val1");
+$test->addParam("key2", "val2");
+$test->addParam("key3", "val3");
+$test->write(); // grava em formato XML
+
+$test = ParamHandler::getInstance("./params.txt");
+$test->write(); // grava em formato texto
+```
+
+##### Responsabilidade
+
+Enquanto o código procedural ocupa-se com detalhes, o orientado a objetos trabalha apenas com uma interface, sem se preocupar com os detalhes da implementação (de respensabilidade do código cliente). Pelo fato de a responsabilidade da implementação ficar com os objetos, e não com o código cliente, seria fácil alternar o suporte para novos formatos, e de forma transparente.
+
+##### Coesão
+
+A coesão é a extensão em que procedimentos adjacentes estão relacionados entre si. De forma ideal, deve-se criar componentes que compartilhem uma responsabilidade clara. Se o código espalhar outras rotinas relacionadas, a manutenção vai ficando mais difícil enquanto as procura para executar as alterações.
+
+##### Acoplamento
+
+Acoplamento ocorre quando partes discretas do código de um sistema estão fortemente conectadas entre si, de forma que uma alteração em uma parte demanda alterações nas outras. Acoplamento não existe apenas no código procedural, embora sua natureza sequencial o torne propenso a apresentar esse problema.
+
+O exemplo orientado a objetos desacopla as subclasses individuais e do código cliente. Assim, se for preciso adicionar um novo formato de parâmetro, basta criar uma nova subclasse, reformulando um único teste ao método estático `getInstance()`.
+
+##### Ortogonalidade
+
+A combinação de componentes com responsabilidades fortemente definidas, e com independência do sistema, é, às vezes, chamada ortogonalidade (*The Pragmatic Programmer*).
+
+Ortogonalidade, argumenta-se, promove reuso, pois os componentes podem ser plugados aos novos sistemas, sem precisar de configurações especiais. Tais componentes terão entradas e saídas claras e independentes de qualquer contexto maior. O código ortogonal torna as alterações mais fáceis, ois o impacto de alterar uma implementação ficará localizado no componente alterado. Finalmente, o código ortogonal é mais seguro. Os efeitos de falhas devem ser limitados no escopo. Um erro em um código altamente interdependente pode causar, facilmente, efeitos prejudiciais no sistema maior.
+
+Não há nada de automático no acoplamento fraco e na alta coesão no contexto de uma classe. Pode-se, afinal, inserir o exemplo procedural inteiro em uma classe mal orientada. Assim, como se pode obter esse balanceamento no código? Geralmente, começa-se considerando as classes que devem ficar no sistema.
+
+#### Escolhendo suas classes
+
+Sistemas orientados a objetos, muitas vezes, possuem representações de software de coisas reais; classes `Person`, `Invoice` e `Shop` são comuns. Isso parece sugerir que definir uma classe é uma questão de encontrar as coisas no sistema e, então, distribuir as atividades mediante métodos. Não é um ponto de partida ruim, mas tem lá seus perigos.
+
+O problema pode residir no fato de uma classe ter que fazer coisas demais. A classe `ShopProduct` fornece métodos para acessar dados do produto, resumos de informações para notas fiscais e notas de entregas, resumos do produto em diferentes formatos, etc. A classe está lutando para gerenciar estratégias para exibição, assim como para gerenciar dados do produto.
+
+A melhor abordagem é pensar em uma classe como uma primeira responsabilidade, tornando-a tão singular e focada quanto possível. Expressando essa responsabilidade em palavras, Peter Coad escreveu que é preciso ser capaz de descrever a responsabilidade de uma classe em 25 palavras, ou menos, raramente usando termos como `&` ou `or`. Se a sentença ficar longa demais, ou cheia de cláusulas, provavelmente, é hora de considerar a definição de novas classes, junto às linhas de algumas responsabilidades escritas.
+
+Assim, classes `ShopProduct` são responsáveis pelo gerenciamento de dados do produto. Se houver adição de métodos para escrever em diferentes formatos, adiciona-se, inicialmente, uma nova área de responsabilidade: exibição de produtos. Anteriormente, foi definido dois tipos baseados nessas responsabilidades separadas. O tipo `ShopProduct` permaneceu responsável pelos dados do produto e o tipo `ShopProductWriter` assumiu a responsabilidade pela exibição das informações do produto. Subclasses individuais refinaram essas responsabilidades.
+
+> **Observação:** poucas regras de projeto são inteiramente inflexíveis. Apesar da regra de que uma classe deve ter uma única responsabilidade, é recomendado evitar adesão incondicional a regras de projeto. Elas não substituem a análise do problema. Interessa permanecer aberto a argumentações por trás dessa regra e enfatize isso.
+
+#### Polimorfismo
+
+O polimorfismo, ou alternância de classes, é um recurso comum de sistemas orientados a objetos.
+
+Polimorfismo é a manutenção de múltiplas implementações por trás de uma interface comum. Isso soa complicado, mas, na verdade, deve ser muito familiar. A necessidade de polimorfismo é, muitas vezes, sinalizada pela presença de declarações condicionais extensivas no código.
+
+O polimorfismo não bane as condições.
+
+O PHP 5 impõe as interfaces definidas por classes abstratas. Isso é útil, pois elas podem assegurar que uma classe-filha implementará uma assinatura de método da mesma forma quando é definida por uma classe-mãe abstrata. Isso inclui totas as dicas de tipo de classe e controle de acesso. O código cliente pode, então, tratar todos os membros de um tipo intercambiavelmente. Há uma importante exceçnao a essa regra: não há como restringir o tipo de retorno de um método. Isso significa que é possível para os métodos em diferentes subclasses retornarem diferentes tipos de classe ou primitivos, o que pode minar a intercambialidade dos tipos. Deve-se tentar ser consistente com seus valores de retorno. Alguns métodos podem ser definidos para aproveitar a tipagem fraca do PHP, retornando diferentes tipos de acordo com as circunstâncias. Outros métodos entram em contato com o código cliente, prometendo retornar determinado tipo. Se esse contrato for estabelecido em uma superclasse abstrata, deve ser honrado pelas suas filhas concretas, de modo que os clientes podem estar seguros de um comportamento consistente. Se houver o compromisso em retornar um objeto de determinado tipo, pode, é claro, retornar uma instância de um subtipo. Embora o interpretador não imponha tipos de retorno, é possível tornar uma convenção, nos seus projetos, o fato de que determinados métodos se comportarão consistentemente. Use comentários no código-fonte para especificar o tipo de retorno de um método.
+
+#### Encapsulamento
+
+Encapsulamento significa, simplesmente, esconder dados e funcionalidade do cliente e, novamente, é um conceito chave em orientação a objetos.
+
+No nível mais simples, encapsula-se dados declarando propriedades `private` ou `protected`. Escondendo uma propriedade do código cliente, impõe-se uma interface e evita-se a corrupção acidental dos dados de um objeto.
+
+O polimorfismo ilustra outro tipo de encapsulamento. Colocando diferentes implementações atrás de uma interface comum, esconde-se essas estratégias. Isso significa que quaisquer alterações que sejam feitas atrás dessa interface são trasnparentes ao sistema maior. A interface é o que importa, e não os mecanismos que trabalham sob seu aporte. Quanto mais independentes esses mecanismos forem, menos chance haverá de mudanças ou reparos terem efeitos ruins nos projetos.
+
+O encapsulamento é, de alguma forma, a chave da programaçnao orientada a objetos. O objetivo é torbar cada parte tão independente quanto possível dos seus pares. Classes e métodos devem ser limitadas em escopo e identificadas com clareza.
+
+A introdução das palavras-chave `private`, `protected` e `public` tornaram o encapsulamento mais fácil. O encapsulamento é, também, um estado de espírito.
+
+Mesmo em PHP 5, as regras poderiam ser quebradas e se descobrir o subtipo exato de um objeto usado em um contexto de alternância de classes, simplesmente passando-o para o método `get_class()`. Tal consulta estabelece uma depenência.
+
+Pense apenas nos participantes chaves do sistema: os tipos de que ele precisará e suas interfaces. Óbvio que o conhecimento do processo instruirá seu pensamento. Deixe as estruturas de relacionamentos do código serem o guia. A implementaçnao é inserida de forma fácil por trás de uma interface bem definida. Obtêm-se, então a flexibilidade de trocar, melhorar, ou estender uma implementação, se precisar, sem afetar o sistema maior.
+
+Para enfatizar a interface, pense em termos de classes bases abstratas, em vez de filhas concretas.
+
+A *Gang of Four (Design Patterns)* resumiu esse princípio com a frase: "Programe para uma interface, não para uma implementação".
+
+#### Quatro indicações
+
+##### Duplicação de código
+
+Captar uma estranha sensação de *déjà vu* enquanto se escreve uma rotina, é possível que tenha um problema.
+
+Observe as instâncias de repetiçnao no sistema. Talvez elas devam ficar juntas. A duplicaçnao, geralmente, significa acoplamento. Se alterar algo fundamental em uma rotina, as rotinas semelhantes precisam ser reformuladas? Se sim, elas provavelmente devem ficar na mesma classe.
+
+##### A classe que sabia demais
+
+Pode ser trabalhoso para parâmetros de método para método. Por que não reduzir esse trabalho usando, simplesmente, uma variável global? Com uma global, todos podem alcançar os dados.
+
+Variáveis globais têm seu lugar, mas elas precisam ser vistas com algum nível de suspeita; um alto nível de suspeita, a propósito. Usando uma variável global, ou dando a alguma classe algum tipo de conhecimento sobre seu domínio, acaba-se por ancorá-la em seu contexto, tornando-a menos reutilizável e dependendo do código fora de controle. A intençnao é desacoplar as classes e rotinas e não criar interdependência. Procure limitar o conhecimento de uma classe ao seu contexto.
+
+##### Fazendo muitas coisas ao mesmo tempo, mas nem sempre bem
+
+Se a classe está tentando fazer muitas coisas ao mesmo tempo, veja se há possibilidade de listar as responsabilidades da classe. Pode-se descobrir que uma delas formará a base de uma boa classe.
+
+Deixar uma classe superzelosa inalterada pode causar certos problemas no caso de criar subclasses.
+
+##### Declarações condicionais
+
+Às vezes, o uso das estruturas `if` e `switch` podem ser um pedido de polimorfismo.
+
+Se a frequência de testes de determinadas condições levar a descoberta de que tais testes se espalham por mais de um método, pode ser um sinal de que a classe deve ser duas ou mais. Veja se a estrutura do código condicional sugere responsabilidades que poderiam ser expressas em classes. As novas classes devem implementar uma classe base abstrata compartilhada.
+
+#### A UML
+
+UML significa *Unified Modeling Language*. As iniciais são corretamente usadas com o artigo definido. Não é apenas uma linguagem de modelagem unificada, é a Linguagem de Modelagem Unificada.
+
+Talvez esse tom derive das circunstâncias do forjamento da linguagem. De acordo com Martin Fowler (*UML Distilled*, 1999), a UML surgiu como um padrão apenas após longos anos de discussões entre os grandes da comunidade de projeto orientado a objetos.
+
+O resultado disso é uma sintaxe gráfica poderosa, útil para descrever sistemas orientados a objetos.
+
+Diagramas de classe podem descrever estruturas e padrões, de forma que seu significado brilha. Essa clareza luminosa é, muitas vezes, mais difícil de encontrar em fragmentos de código.
+
+##### Diagramas de classes
+
+Embora diagramas de classes sejam apenas um aspecto da UML, eles são, talvez, o mais onipresente. Devido ao fato de serem especialmente úteis para descreverem relacionamentos orientados a objetos.
+
+###### Representando classes
+
+Uma classe é representada por uma caixa com um nome:
+
+![Figura que exibe a representação de uma classe](images/fig01.png)
+
+A classe é dividida em três seções, com o mome exibido na primeira. As linhas divisórias são opcionais, quando não se apresenta mais informações do que o nome da classe. É o suficiente para algumas classes. Não há obrigação de representar cada campo e método, ou, até mesmo, cada classe em um diagrama de classe.
+
+Classes abstratas são representadas pelo nome da classe em itálico ou adicionando-se `{abstract}` ao nome da classe:
+
+![Figura que exibe a representação de uma classe abstrata](images/fig02.png)
+![Figura que exibe a representação de uma classe abstrata definida usando restrição](images/fig02.png)
+
+| ShopProductWriter {abstract} |
+| -------------------- |
+|  |
+|  |
+
+Interfaces são definidas da mesma forma que classes, exceto pelo fato de que devem incluir um "esteriótipo", isto é, uma extensão da UML:
+
+![Figura que exibe a representação de uma interface](images/fig04.png)
+
+###### Atributos
+
+De forma geral, os atributos descrevem as propriedades de uma classe. Atributos são listados na seção diretamente abaixo do nome da classe:
+
+![Figura que exibe a representação de uma classe com atributos](images/fig05.png)
+
+O símbolo inicial representa o nível de visibilidade, de controle de acesso, para o atributo. Existem três tipos disponíveis:
+
+| Símbolo | Visibilidade | Explicação |
+| ---------- | ---------- | ---------- |
+| + | Pública | Disponível para todo mundo. |
+| - | Privada | Disponível na classe corrente apenas. |
+| # | Protegida | Disponível na classe corrente e suas subclasses apenas. |
+
+O símbolo da visibilidade é seguido pelo nome do atributo. Nesse caso, descreve-se a propriedade `ShopProduct::$price`. Dois pontos são usados para separar o nome do atributo do seu tipo, e opcionalmente, seu valor padrão.
+
+###### Operações
+
+Operações descrevem métodos, ou, mais apropriadamente, descrevem as chamadas que podem ser feitas sobre uma instância de uma classe:
+
+![Figura que exibe a representação de uma classe descrevendo as  operações](images/fig06.png)
+
+Como se pode ver, operaçnoes usam uma sintaxe semelhante à usada pelos atributos. O símbolo de visibilidade precede o nome do método. Uma lista de parâmetros fica entre parênteses. O tipo de retorno do método, se houver algum, é delimitado por dois pontos. Parâmetros snao muitas vezes representados apenas pelo seu tipo, já que o nome do argumento geralmente não é significativo.
+
+###### Descrevendo herança e implementação
+
+A UML descreve o relacionamento de herança como "generalização". Este relacionamento é representado por uma linha, indo de uma subclasse para sua classe-mãe. A linha possui uma flecha fechada vazia.
+
+![Figura que exibe a descrição da herança](images/fig07.png)
+
+A UML descreve o relacionamento entre as interfaces e as classes que as implementam como "realização". Veja a classe `ShopProduct` fosse implementar a interface `Chargeable`: 
+
+![Figura que exibe a descrição da implementação da interface](images/fig08.png)
+
+###### Associações
+
+A herança é apenas um entre um rande número de relacionamentos em um sistema orientado a objetos. Uma associação ocorre quando uma propriedade de classe é declarada para armazenar uma referência a uma instância (ou instâncias) de outra classe.
+
+![Figura que exibe a descrição de uma associação](images/fig09.png)
+
+Nesse estágio, a natureza do relacionamento é vaga. Só está especificado que um objeto `Teacher` terá uma referência a um ou mais objetos `Pupil`, ou vice-versa. Esse relacionamento pode ou não ser recíproco.
+
+Pode-se usar setas para descrever a direção da associação. A classe `Teacher`, agora, possui uma instância da classe `Pupil`, mas não o contrário, e a flecha leva a classe `Teacher` para a `Pupil`. Essa associação é chamada de "unidirecional".
+
+![Figura que exibe a descrição de uma associação unidirecional](images/fig10.png)
+
+Se cada classe possuir uma referência à outra, pode-se usar uma flecha com duas pontas para descrever um relacionamento "bidirecional".
+
+![Figura que exibe a descrição de uma associação bidirecional](images/fig11.png)
+
+Pode-se especificar o número de instâncias de uma classe que são referênciadas por outra em uma associação. Isso é feito colocando um número ou faixa ao lado de cada classe. Também, pode-se usar `*`, indicando qualquer número de objetos `Pupil`:
+
+![Figura que exibe a descrição de multiplicidade para uma associação](images/fig12.png)
+
+Pode haver um objeto `Teacher` e de cinco a dez objetos `Pupil` na associação:
+
+![Figura que exibe a descrição de multiplicidade para uma associação](images/fig13.png)
+
+###### Agregaçnao e composição
+
+Agregaçnao e composição são semelhantes à associação. Todas descrevem uma situação na qual uma classe possui uma referência permanente a uma ou mais instâncias de outra. Com agregação e composição, entretanto, as instâncias referênciadas formam uma parte intrínseca do objeto.
+
+No caso da agregação, os objetos contidos são parte central do contêiner, mas, também, podem ficar guardados por outros objetos ao mesmo tempo. O relacionamento de agregação é ilustrado por uma linha que começa com um sinal de diamante não preenchido.
+
+Aqui, a classe `SchoolClass` agrega `Pupil`:
+
+![Figura que exibe a descrição de uma agregação](images/fig14.png)
+
+`Pupil` constitui uma classe, mas o mesmo objeto `Pupil` pode ser referido por diferentes instâncias de `SchoolClass` ao mesmo tempo. Dissolver uma classe `School` não implica necessariamente em excluir o `Pupil`, que pode atender a outras classes.
+
+A composição representa um relacionamento ainda mais forte do que este. Na composição, o objeto contido pode ser referenciado apenas pelo seu contêiner. Ele deve ser excluído quando o contêiner também o é. Relacionamentos de composição são exibidos da mesma forma que os relacionamentos de agregação, exceto pelo fato de que o sinal de diamante deve ser preenchido. Abaixo, uma classe `Person` mantém uma referência a um objeto `SocialSecurityData`. A instância contida pode pertencer apenas ao objeto que contém `Person`.
+
+![Figura que exibe a descrição de uma composição](images/fig15.png)
+
+###### Descrevendo uso
+
+O relacionamento de uso é descrito como uma dependência da UML. É o mais transiente dos relacionamentos discutidos nesta seção, pois não descreve uma conexão permanente entre classes.
+
+Uma classe usada ode ser passada como um argumento ou obtido como um resultado de uma chamada de método.
+
+A classe `Report` usa um objeto `ShopProductWriter`. Ele não mantém, no entanto, tal referência como uma propriedade, da mesma forma que um objeto `ShopProductWriter` mantém uma matriz de objetos `ShopProduct`:
+
+![Figura que exibe a descrição de um relacionamento de dependência](images/fig16.png)
+
+###### Usando notas
+
+Uma nota consiste em uma caixa com um canto dobrado. Muitas vezes, ela contém trechos de pseudocódigos.
+
+![Figura que exibe a descrição do uso de uma nota para clarear a dependência](images/fig17.png)
+
+Isso clareia o diagrama. Pode-se ver que o objeto `Report` usa um `ShopProductWriter` para mostrar dados do produto.
+
+##### Diagramas de sequência
+
+Um diagrama de sequência é baseado em objetos, e não em classes. Ele é usado para modelar um processo em um sistema passo a passo.
+
+Um diagrama de sequência apresenta os participantes de um sistema de esquerda para a direita. Aqui, um diagrama simples, modelando os meios pelos quais um objeto `Report` grava dados do produto:
+
+![Figura que exibe a descrição de objetos em um diagrama de sequência](images/fig18.png)
+
+Rotula-se os objetos apenas com nomes de classes. Só no caso de haver mais de uma instância da mesma classe trabalhando independentemente no diagrama é que se inclui um nome de objeto no formato rótulo:classe (product1:ShopProduct, por exemplo).
+
+![Figura que exibe a descrição da vida de um objeto em um diagrama de sequência](images/fig19.png)
+
+As linhas verticais quebradas representam o tempo de vida dos objetos no sistema. As caixas maiores, que seguem as linhas de tempo, representam o foco de um processo. Ler o diagrama de cima para baixo mostra como o processo se move entre os objetos do sistema. Fica mais fácil de observar com as mensagens passadas entre os objetos.
+
+![Figura que exibe a descrição de um diagrama de sequência completo](images/fig20.png)
+
+As flechas representam as mensagens enviadas de um objeto para outro. Valores de retorno são, muitas vezes, implícitos. Cada mensagem é rotulada usando a chamada de método relevante. Pode-se agir com flexibilidade no uso dos rótulos, embora haja uma sintaxe. Assim:
+
+```php
+[okToPrint]
+write()
+```
+
+Esse código significa que a chamada `write()` só deve ser feita se a condição correta for satisfeita. Um asterisco é usado para indicar uma repetição, opcionalmente com mais esclarecimento entre colchetes:
+
+```php
+*[for each ShopProduct]
+write()
+```
+
+Assim, lendo de cima para baixo, o objeto `Report` obtém uma lista de objetos `ShopProduct` a partir de um objeto `ProductStore`. Ele os passa para um objeto `ShopProductWriter`, que armazena referências. O objeto `ShopProductWriter` chama `ShopProduct::getSummaryLine()` para cada objeto `ShopProduct` que ele referencia, adicionando o resultado à sua saída.
+
+Diagramas de sequência podem modelar processos, congelando fatias de interação dinâmica e as apresentando com surpreendente clareza.
+
 ## Padrões
 - O que são padrões de projeto?
 - Por que usá-los?
