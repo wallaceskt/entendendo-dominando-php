@@ -285,7 +285,7 @@ A razão do uso de um método ou propriedade estática consiste:
 
 #### Propriedades constantes
 
-Algumas propriedades nnao podem ser alteradas. Sinalizações de erro e de status, muitas vezes, serão codificadas explicitamente nas suas classes. Embora elas devam ser pública e estaticamente disponíveis, o código cliente não deve alterá-las.
+Algumas propriedades não podem ser alteradas. Sinalizações de erro e de status, muitas vezes, serão codificadas explicitamente nas suas classes. Embora elas devam ser pública e estaticamente disponíveis, o código cliente não deve alterá-las.
 
 O PHP 5 permite que se defina propriedades constantes dentro de uma classe. Da mesma forma que é feito com constantes globais, constantes de classes não podem ser alteradas assim que estiverem configuradas. Uma propriedade constante é declarada com a palavra-chave `const`. As constantes não são prefixadas com um sinal de cifrão, como as propriedades regulares. Por convenção, elas são, muitas vezes, nomeadas usando apenas letras maiúsculas:
 
@@ -613,7 +613,7 @@ class Person {
 
 O método `__call()` é, provavelmente, o mais útil de todos os métodos interceptadores. Ele é chamado quando um método não definido é habilitado pelo código cliente. O `__call()` é chamado com o nome do método e uma matriz que armazena todos os argumentos passados pelo cliente. Qualquer valor que você retorne do método `__call()` é retornado para o cliente como se tivesse sido feito pelo método chamado.
 
-O método `__call()` pode ser útil para a delegação. Delegação é o mecanismo por meio do qual um objeto passa chamadas de métodos. Ele é semelhante à herança no sentido em que uma classe-filha passa uma chamada de método para sua implementaçnao ancestral. Com herança, o relacionamento entre filha e mãe é fixo, então, o fato de que você pode alternar o objeto recebido em tempo de execução significa que a delegação pode ser mais flexível do que a herança. Veja uma classe para formatar informações da classe `Person`:
+O método `__call()` pode ser útil para a delegação. Delegação é o mecanismo por meio do qual um objeto passa chamadas de métodos. Ele é semelhante à herança no sentido em que uma classe-filha passa uma chamada de método para sua implementação ancestral. Com herança, o relacionamento entre filha e mãe é fixo, então, o fato de que você pode alternar o objeto recebido em tempo de execução significa que a delegação pode ser mais flexível do que a herança. Veja uma classe para formatar informações da classe `Person`:
 
 ```php
 class PersonWriter {
@@ -1080,7 +1080,7 @@ Class [<user> class CdProduct extends ShopProduct ] {
 }
 ```
 
-A função `var_dump()` é uma ferramenta de propósito geral, para resumir dados. Juntamente com `print_r()`, seu primo, snao ferramentas fantasticamente convenientes para expor os dados nos scripts. Para classes e funções, a API de reflexão leva tudo, porém, a um novo nível.
+A função `var_dump()` é uma ferramenta de propósito geral, para resumir dados. Juntamente com `print_r()`, seu primo, são ferramentas fantasticamente convenientes para expor os dados nos scripts. Para classes e funções, a API de reflexão leva tudo, porém, a um novo nível.
 
 ###### Um exemplo
 
@@ -1361,7 +1361,7 @@ Polimorfismo é a manutenção de múltiplas implementações por trás de uma i
 
 O polimorfismo não bane as condições.
 
-O PHP 5 impõe as interfaces definidas por classes abstratas. Isso é útil, pois elas podem assegurar que uma classe-filha implementará uma assinatura de método da mesma forma quando é definida por uma classe-mãe abstrata. Isso inclui totas as dicas de tipo de classe e controle de acesso. O código cliente pode, então, tratar todos os membros de um tipo intercambiavelmente. Há uma importante exceçnao a essa regra: não há como restringir o tipo de retorno de um método. Isso significa que é possível para os métodos em diferentes subclasses retornarem diferentes tipos de classe ou primitivos, o que pode minar a intercambialidade dos tipos. Deve-se tentar ser consistente com seus valores de retorno. Alguns métodos podem ser definidos para aproveitar a tipagem fraca do PHP, retornando diferentes tipos de acordo com as circunstâncias. Outros métodos entram em contato com o código cliente, prometendo retornar determinado tipo. Se esse contrato for estabelecido em uma superclasse abstrata, deve ser honrado pelas suas filhas concretas, de modo que os clientes podem estar seguros de um comportamento consistente. Se houver o compromisso em retornar um objeto de determinado tipo, pode, é claro, retornar uma instância de um subtipo. Embora o interpretador não imponha tipos de retorno, é possível tornar uma convenção, nos seus projetos, o fato de que determinados métodos se comportarão consistentemente. Use comentários no código-fonte para especificar o tipo de retorno de um método.
+O PHP 5 impõe as interfaces definidas por classes abstratas. Isso é útil, pois elas podem assegurar que uma classe-filha implementará uma assinatura de método da mesma forma quando é definida por uma classe-mãe abstrata. Isso inclui totas as dicas de tipo de classe e controle de acesso. O código cliente pode, então, tratar todos os membros de um tipo intercambiavelmente. Há uma importante exceção a essa regra: não há como restringir o tipo de retorno de um método. Isso significa que é possível para os métodos em diferentes subclasses retornarem diferentes tipos de classe ou primitivos, o que pode minar a intercambialidade dos tipos. Deve-se tentar ser consistente com seus valores de retorno. Alguns métodos podem ser definidos para aproveitar a tipagem fraca do PHP, retornando diferentes tipos de acordo com as circunstâncias. Outros métodos entram em contato com o código cliente, prometendo retornar determinado tipo. Se esse contrato for estabelecido em uma superclasse abstrata, deve ser honrado pelas suas filhas concretas, de modo que os clientes podem estar seguros de um comportamento consistente. Se houver o compromisso em retornar um objeto de determinado tipo, pode, é claro, retornar uma instância de um subtipo. Embora o interpretador não imponha tipos de retorno, é possível tornar uma convenção, nos seus projetos, o fato de que determinados métodos se comportarão consistentemente. Use comentários no código-fonte para especificar o tipo de retorno de um método.
 
 #### Encapsulamento
 
@@ -1369,15 +1369,15 @@ Encapsulamento significa, simplesmente, esconder dados e funcionalidade do clien
 
 No nível mais simples, encapsula-se dados declarando propriedades `private` ou `protected`. Escondendo uma propriedade do código cliente, impõe-se uma interface e evita-se a corrupção acidental dos dados de um objeto.
 
-O polimorfismo ilustra outro tipo de encapsulamento. Colocando diferentes implementações atrás de uma interface comum, esconde-se essas estratégias. Isso significa que quaisquer alterações que sejam feitas atrás dessa interface são trasnparentes ao sistema maior. A interface é o que importa, e não os mecanismos que trabalham sob seu aporte. Quanto mais independentes esses mecanismos forem, menos chance haverá de mudanças ou reparos terem efeitos ruins nos projetos.
+O polimorfismo ilustra outro tipo de encapsulamento. Colocando diferentes implementações atrás de uma interface comum, esconde-se essas estratégias. Isso significa que quaisquer alterações que sejam feitas atrás dessa interface são transparentes ao sistema maior. A interface é o que importa, e não os mecanismos que trabalham sob seu aporte. Quanto mais independentes esses mecanismos forem, menos chance haverá de mudanças ou reparos terem efeitos ruins nos projetos.
 
-O encapsulamento é, de alguma forma, a chave da programaçnao orientada a objetos. O objetivo é torbar cada parte tão independente quanto possível dos seus pares. Classes e métodos devem ser limitadas em escopo e identificadas com clareza.
+O encapsulamento é, de alguma forma, a chave da programação orientada a objetos. O objetivo é torbar cada parte tão independente quanto possível dos seus pares. Classes e métodos devem ser limitadas em escopo e identificadas com clareza.
 
 A introdução das palavras-chave `private`, `protected` e `public` tornaram o encapsulamento mais fácil. O encapsulamento é, também, um estado de espírito.
 
 Mesmo em PHP 5, as regras poderiam ser quebradas e se descobrir o subtipo exato de um objeto usado em um contexto de alternância de classes, simplesmente passando-o para o método `get_class()`. Tal consulta estabelece uma depenência.
 
-Pense apenas nos participantes chaves do sistema: os tipos de que ele precisará e suas interfaces. Óbvio que o conhecimento do processo instruirá seu pensamento. Deixe as estruturas de relacionamentos do código serem o guia. A implementaçnao é inserida de forma fácil por trás de uma interface bem definida. Obtêm-se, então a flexibilidade de trocar, melhorar, ou estender uma implementação, se precisar, sem afetar o sistema maior.
+Pense apenas nos participantes chaves do sistema: os tipos de que ele precisará e suas interfaces. Óbvio que o conhecimento do processo instruirá seu pensamento. Deixe as estruturas de relacionamentos do código serem o guia. A implementação é inserida de forma fácil por trás de uma interface bem definida. Obtêm-se, então a flexibilidade de trocar, melhorar, ou estender uma implementação, se precisar, sem afetar o sistema maior.
 
 Para enfatizar a interface, pense em termos de classes bases abstratas, em vez de filhas concretas.
 
@@ -1389,13 +1389,13 @@ A *Gang of Four (Design Patterns)* resumiu esse princípio com a frase: "Program
 
 Captar uma estranha sensação de *déjà vu* enquanto se escreve uma rotina, é possível que tenha um problema.
 
-Observe as instâncias de repetiçnao no sistema. Talvez elas devam ficar juntas. A duplicaçnao, geralmente, significa acoplamento. Se alterar algo fundamental em uma rotina, as rotinas semelhantes precisam ser reformuladas? Se sim, elas provavelmente devem ficar na mesma classe.
+Observe as instâncias de repetição no sistema. Talvez elas devam ficar juntas. A duplicação, geralmente, significa acoplamento. Se alterar algo fundamental em uma rotina, as rotinas semelhantes precisam ser reformuladas? Se sim, elas provavelmente devem ficar na mesma classe.
 
 ##### A classe que sabia demais
 
 Pode ser trabalhoso para parâmetros de método para método. Por que não reduzir esse trabalho usando, simplesmente, uma variável global? Com uma global, todos podem alcançar os dados.
 
-Variáveis globais têm seu lugar, mas elas precisam ser vistas com algum nível de suspeita; um alto nível de suspeita, a propósito. Usando uma variável global, ou dando a alguma classe algum tipo de conhecimento sobre seu domínio, acaba-se por ancorá-la em seu contexto, tornando-a menos reutilizável e dependendo do código fora de controle. A intençnao é desacoplar as classes e rotinas e não criar interdependência. Procure limitar o conhecimento de uma classe ao seu contexto.
+Variáveis globais têm seu lugar, mas elas precisam ser vistas com algum nível de suspeita; um alto nível de suspeita, a propósito. Usando uma variável global, ou dando a alguma classe algum tipo de conhecimento sobre seu domínio, acaba-se por ancorá-la em seu contexto, tornando-a menos reutilizável e dependendo do código fora de controle. A intenção é desacoplar as classes e rotinas e não criar interdependência. Procure limitar o conhecimento de uma classe ao seu contexto.
 
 ##### Fazendo muitas coisas ao mesmo tempo, mas nem sempre bem
 
@@ -1467,7 +1467,7 @@ Operações descrevem métodos, ou, mais apropriadamente, descrevem as chamadas 
 
 ![Figura que exibe a representação de uma classe descrevendo as  operações](images/fig06.png)
 
-Como se pode ver, operaçnoes usam uma sintaxe semelhante à usada pelos atributos. O símbolo de visibilidade precede o nome do método. Uma lista de parâmetros fica entre parênteses. O tipo de retorno do método, se houver algum, é delimitado por dois pontos. Parâmetros snao muitas vezes representados apenas pelo seu tipo, já que o nome do argumento geralmente não é significativo.
+Como se pode ver, operaçnoes usam uma sintaxe semelhante à usada pelos atributos. O símbolo de visibilidade precede o nome do método. Uma lista de parâmetros fica entre parênteses. O tipo de retorno do método, se houver algum, é delimitado por dois pontos. Parâmetros são muitas vezes representados apenas pelo seu tipo, já que o nome do argumento geralmente não é significativo.
 
 ###### Descrevendo herança e implementação
 
@@ -1503,9 +1503,9 @@ Pode haver um objeto `Teacher` e de cinco a dez objetos `Pupil` na associação:
 
 ![Figura que exibe a descrição de multiplicidade para uma associação](images/fig13.png)
 
-###### Agregaçnao e composição
+###### Agregação e composição
 
-Agregaçnao e composição são semelhantes à associação. Todas descrevem uma situação na qual uma classe possui uma referência permanente a uma ou mais instâncias de outra. Com agregação e composição, entretanto, as instâncias referênciadas formam uma parte intrínseca do objeto.
+Agregação e composição são semelhantes à associação. Todas descrevem uma situação na qual uma classe possui uma referência permanente a uma ou mais instâncias de outra. Com agregação e composição, entretanto, as instâncias referênciadas formam uma parte intrínseca do objeto.
 
 No caso da agregação, os objetos contidos são parte central do contêiner, mas, também, podem ficar guardados por outros objetos ao mesmo tempo. O relacionamento de agregação é ilustrado por uma linha que começa com um sinal de diamante não preenchido.
 
@@ -1523,7 +1523,7 @@ A composição representa um relacionamento ainda mais forte do que este. Na com
 
 O relacionamento de uso é descrito como uma dependência da UML. É o mais transiente dos relacionamentos discutidos nesta seção, pois não descreve uma conexão permanente entre classes.
 
-Uma classe usada ode ser passada como um argumento ou obtido como um resultado de uma chamada de método.
+Uma classe usada pode ser passada como um argumento ou obtido como um resultado de uma chamada de método.
 
 A classe `Report` usa um objeto `ShopProductWriter`. Ele não mantém, no entanto, tal referência como uma propriedade, da mesma forma que um objeto `ShopProductWriter` mantém uma matriz de objetos `ShopProduct`:
 
@@ -1572,9 +1572,105 @@ Assim, lendo de cima para baixo, o objeto `Report` obtém uma lista de objetos `
 Diagramas de sequência podem modelar processos, congelando fatias de interação dinâmica e as apresentando com surpreendente clareza.
 
 ## Padrões
-- O que são padrões de projeto?
-- Por que usá-los?
-- Alguns princípios sobre padrões
+
+A comunidade de programadores trabalha, em conjunto, na maior parte dos problemas encontrados. Padrões de projeto podem fornecer os meios para extrair conhecimento com o qual se resolve esses problemas. Assim, que um padrão torna-se comum, ele enriquece a linguagem, facilitando o compartilhamento de ideias de projeto e suas consequências. Padrões de projeto, simplesmente, destilam problemas comuns, definem soluções testadas e descrevem prováveis resultados.
+
+### O que são padrões de projeto?
+
+No mundo do software, um padrão é uma manifestação tangível da memória tribal de uma organização.
+
+[Um padrão é] uma solução de um problema em contexto.
+
+Um padrão de projeto é um problema analisado e uma boa prática para sua solução explicada. Problemas tendem a ser recorrentes e devem ser resolvidos sempre que ocorrem.
+
+Padrões de projeto descrevem e formalizam esses problemas e soluções, tornando a experiência, obtida a duras penas, disponível para uma comunidade maior de programação. Os padrões são (ou devem ser) basicamente *bottom-up* e não *top-down*. Eles são enraizado na prática, e não na teoria. Porém, isso não significa que não existe um forte elemento teórico para os padrões de projeto; apenas que os padrões são baseados em técnicas do mundo real, usadas por programadores reais. Martin Fowler diz que ele descobre padrões, não os inventa.
+
+Um catálogo de padrões não é um livro de receitas. Padrões de projeto descrevem abordagens para determinados problemas. Os detalhes da implementação podem variar enormemente de acordo com o contexto, que pode incluir a linguagem, a natureza da aplicação, o tamanho do projeto e as especificidades do problema.
+
+Nomear um padrão é valioso. Ele fornece o tipo de vocabulário comum que surgiu, naturalmente, com o passar dos anos, nas profissões e ofícios mais antigos. Tal prática ajuda bastante o projeto colaborativo, como abordagens alternativas, e suas consequências são testadas.
+
+> *"Cada padrão descreve um problema que ocorre várias vezes em nosso ambiente e, então, descreve o núcleo da solução para esse problema, de forma que você possa usar essa solução um milhão de vezes, sem fazê-lo da mesma forma."* - Christopher Alexander
+
+O enfoque aqui se concentra na forma descrita em *Design Patterns: Elements of Reusable Object-Oriented Software* de Erich Gamma, Richard Helm, Ralph Johnson e John Vlissides, mais conhecidos como *Gang of Four*.
+
+### Uma visão geral do padrão de projetos
+
+No fundo, um padrão de projeto consiste em quatro partes.
+
+#### Nome
+
+Nomes são importantes, eles enriquecem a linguagem dos programadores. Algumas poucas palavras curtas resumem problemas e soluções complexos. Eles devem balancear brevidade e descrição.
+
+*Nomes de padrões são cruciais, porque parte do propósito dos padrões é criar um vocabulário que permita ao desenvolvedor se comunicar mais eficazmente.* - Martin Fowler.
+
+#### O problema
+
+Não importa o quão elegante é a solução, o problema e seu contexto são a base de um padrão. Reconhecer um problema é mais difícil do que aplicar as soluções de um catálogo de padrões. Esta é uma razão pela qual algumas soluções de padrões podem ser mal aplicadas ou usadas em excesso.
+
+Padrões descrevem um problema com muito cuidado. Ele é descrito brevemente e, então, contextualizando, muitas vezes, com um exemplo típico e um ou mais diagramas. Ele é dividido nas suas especificações, em suas várias manifestações. Quaisquer sinais de aviso que possam ajudar na identificação do problema são descritos.
+
+#### A solução
+
+A solução é resumida, inicialmente, em conjunto com o problema. Ela, também, é descrita em detalhes, muitas vezes usando diagramas de interação e de classes UML. O padrão geralmente inclui um exemplo de código.
+
+Embora o código possa ser apresentado, a solução nunca é recortar e colar. O padrão descreve uma abordagem para um problema. Podem existir centenas de nuances na implementação.
+
+Martin Fowler refere-se às soluções nos padrões como "cozidas pela metade", ou seja, o codificador deve pegar o conceito e terminá-lo ele próprio.
+
+#### Consequências
+
+Cada decisão terá consequências mais amplas. Isso deve incluir a resolução satisfatória do problema em questão, é claro. Uma soluçnao, uma vez distribuída, pode ser idealmente apropriada para funcionar com outros padrões. Porém, também pode haver perigos a serem observados.
+
+### O formato Gang of Four
+
+Pelo fato de o livro da *Gang of Four* ter tanta influência, e pela abordagem de muitos dos padrões que eles descrevem, será examinado algumas das seções que eles incluem nos seus padrões:
+
+- Intenção: uma declaração breve do propósito do padrão. Deve-se ser capaz de entender o motivo do padrão rapidamente;
+- Motivação: o problema descrito muitas vezes em termos de uma situação típica;
+- Aplicabilidade: um exame das diferentes situações nas quais pode-se aplicar o padrão. Enquanto que a motivação descreve um problema típico, esta seção define situações específicas e pesa os méritos da solução no contexto de cada uma;
+- Estrutura/Interação: essas seções podem conter diagramas de interação e de classe UML descrevendo os relacionamentos entre classes e objetos na solução;
+- Implementação: essa seção examina os detalhes da solução e quaisquer questões que possam surgir durante a aplicação da técnica, fornecendo dicas para a distribuição;
+- Código exemplo: um código de exemplo simples muitas vezes fornece uma caminho para um padrão. O exemplo é muitas vezes limitado ao básico para deixar a solução à vista;
+- Usos conhecidos: sistemas reais nos quais o padrão (problema, contexto e solução) ocorre. Há quem diga que, para um padrão ser genuíno, ele deve ser encontrado em pelo menos três contextos publicamente disponíveis; lei às vezes chamada "regra de três";
+- Padrões relacionados: alguns padrões implicam outros. Na aplicação de uma solução, pode-se criar o contexto no qual outro torna-se útil. Essa seção examina tais sinergias e, também, discute padrões que possuam similaridades quanto ao problema, além de alguns antecedentes: padrões definidos em algum outro lugar sobre os quais o padrão corrente é construído.
+
+### Por que usar padrões de projeto?
+
+#### Um padrão de projeto define um problema
+
+Definindo problemas comuns, os padrões podem auxiliar a melhorar um projeto.
+
+#### Um padrão de projeto define uma solução
+
+Após definir e reconhecer o problema, um padrão oferece uma solução, junto a uma análise das consequências do seu uso.
+
+#### Padrões de projeto são independentes de linguagem
+
+Padrões definem objetos e soluções em termos orientados a objetos. Isso significa que muitos padrões aplicam-se igualmente em mais de uma linguagem. Outros se transferem com modificações à aplicabilidade ou consequências do padrão, mas permanecem válidos.
+
+#### Padrões definem um vocabulário
+
+Fornecendo aos desenvolvedores nomes para as técnicas, os padrões tornam a comunicação mais rica.
+
+Sem uma linguagem de padrões, ainda assim pode-se usar outras técnicas. Elas precedem a sua nomelcatura e organização. Se os padrões não existissem, eles evoluiriam sozinhos. Qualquer ferramenta que seja usada suficientemente acabará adquirindo um nome.
+
+#### Padrões são experimentados e testados
+
+Assim, se os padrões documentam uma boa prática, a nomeclatura é a única coisa verdadeiramente original no catálogo de padrões? Em algum sentido, isso parece ser verdade. Padrões representam a melhor prática em um contexto orientado a objetos. Mesmo que parece algum exercício de reafirmar o óbvio, os padrões fornecem acesso a problemas e soluções que de outra forma seria descoberto do modo mais difícil.
+
+Os padrões tornam o projeto acessível. 
+
+#### Padrões são projetados para colaboração
+
+Pela sua natureza, os padrões devem ser geradores e passíveis de composição. Isso significa que se deve ser capaz de aplicar um padrão e, por meio dele, criar condições apropriadas para a aplicação de outro.
+
+Catálogos de padrões são, geralmente, projetados com esse tipo de colaboração em mente; o potencial para a composição de padrões é sempre documentado no próprio padrão.
+
+#### Padrões de projeto promovem um bom projeto
+
+Padrões de projeto demonstram e aplicam princípios de projeto orientado a objetos. Assim, um estudo de projetos de padrão pode produzir mais do que uma solução específica em um contexto. Pode-se obter uma nova perspectiva sobre as formas pelas quais objetos e classes podem ser combinados para alcançar um objetivo.
+
+## Alguns princípios sobre padrões
 - Gerando objetos
 - Projetando relações de objetos
 
