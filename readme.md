@@ -1671,8 +1671,263 @@ Catálogos de padrões são, geralmente, projetados com esse tipo de colaboraç�
 Padrões de projeto demonstram e aplicam princípios de projeto orientado a objetos. Assim, um estudo de projetos de padrão pode produzir mais do que uma solução específica em um contexto. Pode-se obter uma nova perspectiva sobre as formas pelas quais objetos e classes podem ser combinados para alcançar um objetivo.
 
 ## Alguns princípios sobre padrões
-- Gerando objetos
-- Projetando relações de objetos
+
+Embora padrões de projeto simplesmente descrevam soluções para problemas, eles tendem a enfatizar soluções que promovam a reutilização e a flexibilidade. Para tanto, manifestam algum tipo de princípio de projeto orientado a objetos.
+
+### A revelação do padrão
+
+Dar muita importância à herança num projeto tentando construir muita funcionalidade nas classes.
+
+Componentes de software podem ser definidos em tempo de execução, combinando objetos em relacionamentos flexíveis. A *Gang of Four* resumiu isso em um princípio: favoreça a composição em relação à herança. Os padrões descreviam formas nas quais os objetos poderiam ser combinados em tempo de execução, para obter um nível de flexibilidade impossível apenas em uma árvore de herança.
+
+### Composição e herança
+
+Herança é uma forma poderosa de projetar alterando circunstâncias e contextos dinâmicos. No entanto, ela pode limitar a flexibilidade, especialmente quando as classes assumem múltiplas responsabilidads.
+
+#### O problema
+
+Classes-filhas herdam os métodos e propriedades das suas mães (desde que sejam elementos protegidos ou públicos). Usa-se esse fato para projetar classes-filhas que forneçam funcionalidade especializada.
+
+![Figura que exibe a descrição de uma classe-mãe e duas classes-filhas](images/fig21.png)
+
+A classe abstrata `Lesson` modela uma aula em uma universidade. Ela define os métodos abstract `cost()` e `chargeType()`. O diagrama mostra duas classes, `FixedPriceLesson` e `TimedPriceLesson`, que fornecem mecanismos distintos de cobrança para aulas.
+
+Usando esse esquema de herança, pode-se alternar entre as implementações de aulas. O código cliente só saberá que está lidando com um objeto `Lesson`, de modo que os detalhes dos custos serão transparentes.
+
+Agora, é preciso introduzir um novo conjunto de especializações: palestras e seminários. Por organizarem as matrículas e as observações de aula de formas diferentes, requerem classes separadas. Dessa maneira, agora, têm-se duas forças que atuam no projeto. Torna-se necessário lidar com estratégias de preços e separar palestras e seminários.
+
+![Figura que exibe a descrição de uma estrutura pobre de herança](images/fig22.png)
+
+Vê-se uma hierarquia claramente imperfeita. O uso da árvore de herança só vai gerar mais duplicação de funcionalidades.
+
+Considerar o uso de declarações condicionais nas superclasse `Lesson` remove as duplicações infelizes das estratégias de preços. Mover a lógica de preços da árvore de herança para a superclasse é o contrário da refatoração comum, em que se substitui uma condição por polimorfismo.
+
+```php
+abstract class Lesson {
+    protected $duration;
+    const FIXED = 1;
+    const TIMED = 2;
+    private $costtype;
+
+    function __construct($duration, $costtype = 1) {
+        $this->duration = $duration;
+        $this->costtype = $costtype;
+    }
+
+    function cost() {
+        swtich ($this->costtype) {
+            CASE self::TIMED:
+                return (5 * $this->duration);
+                break;
+            CASE self::FIXED:
+                return 30;
+                break;
+            default:
+                $this->costtype = self::FIXED;
+                return 30;
+        }
+    }
+
+    function chargeType() {
+        swtich ($this->costtype) {
+            CASE self::TIMED:
+                return "hourly rate";
+                break;
+            CASE self::FIXED:
+                return "fixed rate";
+                break;
+            default:
+                $this->costtype = self::FIXED;
+                return "fixed rate";
+        }
+    }
+
+    // mais métodos de lesson...
+}
+
+class Lecture extends Lesson {
+    // ...
+}
+
+class Seminar extends Lesson {
+    // ...
+}
+```
+
+![Figura que exibe a descrição da hierarquia de herança, melhorada pela remoçnao de cálculos de custos das subclasses](images/fig23.png)
+
+A estrutura fica muito mais administrável, porém, a um custo. Usar condições, nesse código, é um passo para trás. Forçou a duplicar a declaração condicional pelos métodos `chargeType()` e `cost()`.
+
+#### Usando composição
+
+Pode-se usar o padrão `Strategy` para sair do problema. `Strategy` é usado para mover um conjuto de algoritmos para um tipo separado. Ao mover os cálculos de custos, simplifica-se o tipo `Lesson`:
+
+![Figura que exibe a descrição da mudança de algoritmos para um tipo separado](images/fig24.png)
+
+Com a classe abstrata `CostStrategy`, que define os métodos abstratos `cost()` e `chargeType()`. O método `cost()` requer uma instância de `Lesson`, que ele usará para gerar dados de custos. `CostStrategy` tem duas implementações. Objetos `Lesson` funcionam apenas com o tipo `CostStrategy`, e não com uma implementação específica, de modo que se pode adicionar novos algoritmos de custos a qualquer momento, construindo subclasses de `CostStrategy`. Isso não requereria mudanças para alguma classe `Lesson`. Veja:
+
+```php
+abstract class Lesson {
+    private $duration;
+    private $costStrategy;
+
+    function __construct($duration, CostStrategy $strategy) {
+        $this->duration = $duration;
+        $this->costStrategy = $strategy;
+    }
+
+    function cost() {
+        return $this->costStrategy->cost($this);
+    }
+
+    function chargeType() {
+        return $this->costStrategy->chargeType();
+    }
+
+    // ...
+}
+```
+
+A classe `Lesson` requer um objeto `CostStrategy`, que ele armazena como uma propriedade. O método `Lesson::cost()` simplesmente chama `CostStrategy::cost()`. Igualmente, `Lesson::chargeType()` chama `CostStrategy::chargeType()`. Essa chamada explícita de método de outro objeto para satisfazer uma solicitação é conhecida como delegação. Assim, o objeto `CostStrategy` é delegado de `Lesson`. A classe `Lesson` lava suas mãos quanto à responsabilidade pelos cálculos de custo e passa a tarefa para uma implementação de `CostStrategy`.
+
+```php
+function cost() {
+    return $this->costStrategy->cost($this);
+}
+```
+
+Veja a classe `CostStrategy` junto à sua implementação-filha:
+
+```php
+abstract class CostStrategy {
+    public function cost(Lesson $lesson);
+    public function chargeType();
+}
+
+class TimedCostStrategy extends CostStrategy {
+    function cost(Lesson $lesson) {
+        return ($lesson->getDuration() * 5);
+    }
+
+    function chageType() {
+        return "hourly rate";
+    }
+}
+
+class FixedCostStrategy extends CostStrategy {
+    function cost(Lesson $lesson) {
+        return 30;
+    }
+
+    function chageType() {
+        return "fixed rate";
+    }
+}
+```
+
+Pode-se alternar a forma pela qual qualquer objeto `Lesson` encapsula o custo, passando para ele um objeto `CostStrategy` diferente em tempo de execução. Essa abordagem torna o código mais flexível: em vez de construir funcionalidade estaticamente nas estruturas de código, pode-se combinar e recombinar os objetos dinamicamente:
+
+```php
+$lessons[] = new Seminar(4, new TimedCostStrategy());
+$lessons[] = new Lecture(4, new FixedCostStrategy());
+
+foreach ($lesson as $lesson) {
+    print "lesson charge: {$lesson->cost()}. ";
+    print "Charge type: {$lesson->chargeType()}.\n";
+}
+
+// saída:
+// lesson charge 20. Charge type: hourly rate.
+// lesson charge 30. Charge type: fixed rate.
+```
+
+Um efeito da estrutura é que enfoca-se nas responsabilidades das classes. Objetos `CostStrategy` são responsáveis apenas pelo cálculo de custo, e objetos `Lesson` gerenciam dados da aula.
+
+Assim, a composição pode tornar o código mais flexível, pois os objetos podem ser combinados para lidar com tarefas dinamicamente, e de muito mais formas do que se pode prever em uma hierarquia de herança. Pode haver uma perda no que diz respeito à legibilidade, no entanto. Como a composição tende a resultar em mais tipos, com relacionamentos que não são fixos com a mesma previsibilidade que o são em relacionamentos de herança, pode ser um pouco mais difícil assimilar os relacionamentos de um sistema.
+
+### Desacoplamento
+
+Um sistema com classes altamente independentes pode ser difícil de manter. Uma mudança em uma localização pode demandar alterações relacionadas em cascata pelo sistema.
+
+#### O problema
+
+A reutilização é um dos objetivos-chaves do projeto orientado a objetos e o acoplamento forte é seu inimigo.O alto acoplamento é diagnosticado quando uma mudança  em ummcomponente de um sistema precisa de muitas mudanças em outros lugares. Almeja-se criar componentes independentes de modo que se possa realizar alterações com segurança.
+
+Um acoplamento pode ocorrer quando muitas classes em um sistema são inseridas explicitamentes em uma plataforma ou ambiente. Num sistema que funcione com um banco de dados MySQL, por exemplo, pode-se usar funções como `mysql_connect()` e `mysql_query()`, para falar com o servidor de banco de dados.
+
+Se for preciso distribuir o sistema em um servidor que não suporte MySQL, pode-se converter o projeto inteiro para usar SQLite. Porém, seria necessário fazer alterações por todo o código e enfrentar a perspectiva de manter duas versões em paralelo da aplicação.
+
+O problema surge quando o código que fala com um banco de dados está espalhado por todo um projeto. Conversar com bancos de dados não é a principal responsabilidade da maioria das classes do sistema, de forma que a melhor estratégia é extrair tal código e agrupá-lo por trás de uma interface comum. dessa forma, as classes se tornam independentes. Ao mesmo tempo, concentrar o código gateway em um lugar facilita muito a alternância para uma nova plataforma, sem perturbar o sistema mais amplo.
+
+#### Afrouxando seu acoplamento
+
+Para lidar flexivelmente com código de banco de dados, deve-se desacoplar a lógica da aplicação das especificidades da plataforma de banco de dados. Felizmente, isso é tão fácil quanto usar um pacote `PEAR::DB`.
+
+Veja o código que usa `PEAR::DB` para trabalhar, primeiro, com MySQL, e, depois, com SQLite:
+
+```php
+require_once("DB.php");
+$dsn_array[] = "mysql://bob:bobs_pass@localhost/bobs_db";
+$dsn_array[] = "mysql://./bobs_db.db";
+
+foreach($dsn_array as $dsn) {
+    print "$dsn\n\n";
+    $db = DB::connect($dsn);
+    $query_result = $db->query("SELECT * FROM bobs_table");
+
+    while($row = $query_result->fetchRow(DB_FETCHMODE_ARRAY)) {
+        printf("| %-4s| %-4s| %-25s|", $row[0], $row[2], $row[1]);
+        print "\n";
+    }
+
+    print "\n";
+    $query_result->free();
+    $db->disconnect();
+}
+```
+
+A classe `DB` fornece um método estático chamado `connect()`, que recebe uma string *Data Source Name* (DSN). De acordo com a composição dessa string, ela retorna determinada implementação de uma classe chamada `DB_common`. Assim, para a string `mysql://`, o método `connect()` retorna um objeto `DB_mysql` e, para uma string que comece com `sqlite://`, ele retorna um objeto `DB_sqlite`. Veja:
+
+![Figura que exibe a descrição de PEAR::DB desacoplando o código cliente de objetos de banco de dados](images/fig25.png)
+
+Esse projeto possui alguma semelhança com o padrão *abstract factory*. Embora seja mais simples, possui a mesma motivação: gerar um objeto que implemente uma interface abstrata sem querer que o cliente instancie o objeto diretamente.
+
+### O conceito que varia
+
+É fácil interpretar uma decisão de projeto assim que ela tiver sido tomada, mas como se decide onde iniciar?
+
+A *Gang of Four* recomenda que se "encapsule o conceito que varia". No exemplo anterior, o "conceito variante" é o algoritmo de custo. O cálculo de custo não apenas é uma das duas estratégias possíveis no exemplo, como também um candidato óbvio para expansão: ofertas especiais, taxas de alunos estrangeiros, descontos introdutórios, etc.
+
+Ao trazer essa variação para uma classe separada, destaca-se sua adequação para o encapsulamento.
+
+A *Gang of Four* recomenda procurar elementos que variam nas suas classes e avalie sua adequação para encapsulamento em um novo tipo. Cada alternativa em uma condição suspeita pode ser extraída para formar uma classe estendendo um pai abstrato comum. Esse novo tipo pode, então, ser usado pela classe ou classes a partir das quais ela foi extraída. Isso tem o efeito de:
+
+- Enfocar a responsabilidade;
+- Promover flexibilidade por meio da composiçnao;
+- Tornar hierarquias de herança mais compactas e enfocadas;
+- Reduzir a duplicação.
+
+Então, como se localiza a variação? Um sinal é o mal uso da herança.
+
+Isso poderia incluir herança distribuída de acordo com múltiplas forças de uma só vez: palestra/seminário, custos fixos/tempo. Também poderia incluir o uso de subclasses em algoritmos em que fosse incidental à responsabilidade central do tipo. O outro sinal de variação apropriada para encapsulamento é, é claro, uma expressão condicional.
+
+### Patternitis
+
+Um problema para o qual não há padrão é o uso desnecessário ou inapropriado de padrões.
+
+A metodologia da Programação eXtrema oferece alguns princípios que podem se aplicar aqui. O primeiro é: você não precisará disso! Muitas vezes abreviado para YAGNI (You aren't going to need it). Isso é, geralmente, usado em recursos da aplicação, mas também faz sentido para padrões.
+
+> Quando construimos ambientes em PHP, tendo a dividir minha aplicação em camadas, separando a lógica da aplicação das camadas de ersistência e apresentação. Uso todos os tipos de padrões corporativos e básicos em conjunto uns com os outros. Quando me pedem para construir um formulário de *feedback* para um *site* de um pequeno negócio, posso, simplesmente usar código procedural em uma única página de script. Não preciso de enormes quantidades de flexibilidade, não construirei sobre a versão inicial. Não preciso usar padrões que abordem problemas em sistemas maiores. Em vez disso, aplico o segundo princípio da XP: a coisa mais simples que funcione.
+
+Quando se trabalha com um catálogo de padrões, a estrutura e o processo da solução são os que permanecem na mente, consolidada pelo exemplo de código. Antes de aplicar um padrão, no entanto, preste atenção na seção **Problema** ou **Quando usá-lo** e leia sobre as suas consequências.
+
+## Gerando objetos
+
+
+
+## Projetando relações de objetos
+
+
 
 ## Prática
 - A boa (e a má) prática
