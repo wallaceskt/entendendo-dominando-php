@@ -1923,18 +1923,717 @@ Quando se trabalha com um catálogo de padrões, a estrutura e o processo da sol
 
 ## Gerando objetos
 
+Criar objetos é algo confuso. Tantos projetos orientados a objetos lidam com belas e limpas classes abstratas, aproveitando a impressionante flexibilidade permitida pelo polimorfismo (a alternância de implementações concretas em tempo de execução). Para obter essa flexibilidade, entretanto, deve-se planejar estratégias para a geração de objetos. Serão abordados:
 
+- O padrão `Singleton`: uma classe especial que gera uma e somente uma instância de objeto;
+- O padrão `Factory Method`: como construir uma hierarquia de herança para classes criadoras;
+- O padrão `Abstract Method`: para agrupar a criação de produtos funcionalmente relacionados;
+- O padrão `Prototype`: como usar `clone` para gerar objetos.
+
+### Problemas e soluções na geração de objetos
+
+A criação de objetos pode ser um ponto fraco em um projeto orientado a objeos. O princípio: codifique para uma interface, e não para uma implementação. Para esse fim, deve-se estar encorajado a trabalhar com supertipos abstratos nas classes. Isso torna o código mais flexível, permitindo o uso de objetos instanciados a partir de diferentes subclasses concretas em tempo de execução. Isso tem o efeito colateral de postergar a instanciação dos objetos.
+
+```php
+abstract class Employee {
+    protected $name;
+
+    function __construct($name) {
+        $this->name = $name;
+    }
+
+    abstract function fire();
+}
+
+class Minion extends Employee {
+    function fire() {
+        print "{$this->name}: I'll clear my desk\n";
+    }
+}
+
+class CluedUp extends Employee {
+    function fire() {
+        print "{$this->name}: I'll call my lawyer\n";
+    }
+}
+
+class NastyBoss {
+    private $employees = array();
+
+    function addEmployee($employeeName) {
+        $this->employees[] = new Minion($employeeName);
+    }
+
+    function projectFails() {
+        if (count($this->employees)) {
+            $emp = array_pop($this->employees);
+            $emp->fire();
+        }
+    }
+}
+
+$boss = new NastyBoss();
+$boss->addEmployee("Harry");
+$boss->addEmployee("Bob");
+$boss->addEmployee("Mary");
+$boss->projectFails();
+
+// saída:
+// mary: I'll clear my desk
+```
+
+A classe abstrata `Employee` foi definida com uma implementação oprimida, `Minion`. Dada uma string com um nome, o método `NastyBoss::addEmployee()` instancia um novo objeto `Minion`. Sempre que um objeto `NastyBoss` tem problemas (por meio de `NastyBoss::projectFails()`), ele procura um `Minion` para demitir.
+
+Instanciando um objeto `Minion` diretamente na classe `NastyBoss`, limita-se a flexibilidade. Se um objeto `NastyBoss` pudesse trabalhar com qualquer instância do tipo `Employee`, poder-se-ia fazer o código lidar com variações em tempo de execução quando mais especializações `Employee` fossem adicionadas. Veja o seguinte polimorfismo:
+
+![Figura que exibe a descrição de que trabalar com um tipo abstrato permite o polimorfismo](images/fig26.png)
+
+Se a classe `NastyBoss` não instsanciar um objeto `Minion`, de onde ele vem? Autores, muitas vezes, se livram desse problema restringindo um tipo de argumento em uma declaração de método e, então, omitindo, convenientemente, para mostrar a instanciação em qualquer coisa que não seja um contexto de teste:
+
+```php
+class NastyBoss {
+    private $employees = array();
+
+    function addEmployee(Employee $employee) {
+        $this->employees[] = $employee;
+    }
+
+    function projectFails() {
+        if (count($this->employees)) {
+            $emp = array_pop($this->employees);
+            $emp->fire();
+        }
+    }
+}
+
+$boss = new NastyBoss();
+$boss->addEmployee(new Minion("Harry"));
+$boss->addEmployee(new CluedUp("Bob"));
+$boss->addEmployee(new Minion("Mary"));
+$boss->projectFails();
+$boss->projectFails();
+$boss->projectFails();
+
+// saída:
+// Mary: I'll clear my desk
+// Bob: I'll call my lawyer
+// Harry: I'll clear my desk
+```
+
+Embora a versão da classe `NastyBoss` funcione com o tipo `Employee` e, portanto, se beneficie do polimorfismo, ainda não está definido uma estratégia para a criaçnao de objetos.
+
+Se houver um princípio a ser encontrado, aqui está ele: delegue a instanciação de objetos. Foi fixado, implicitamente, no exemplo acima, solicitando que um objeto `Employee` seja passado para uma classe ou método separado, que assume a responsabilidade pela geraçnao de objetos `Employee`. Agora, será adicionado um método estático para a classe `Employee`, que implementa uma estratégia para a criação de onjetos:
+
+```php
+abstract class Employee {
+    protected $name;
+    private static $types = array('minion', 'cluedup', 'wellconnected');
+
+    static function recruit($name) {
+        $num = rand(1, count(self::$types)) - 1;
+        $class = self::$types[$num];
+
+        return new $class($name);
+    }
+
+    function __construct($name) {
+        $this->name = $name;
+    }
+
+    abstract function fire();
+}
+```
+
+Percebe-se aqui a necessidade de uma string com um nome, para ser usada a fim de instanciar determinado subtipo `Employee` aleatoriamente. Pode-se, agora, delegar os detalhes da instanciação para o método `recruit()` da classe `Employee`:
+
+```php
+$boss = new NastyBoss();
+$boss->addEmployee(Employee::recruit("Harry"));
+$boss->addEmployee(Employee::recruit("Bob"));
+$boss->addEmployee(Employee::recruit("Mary"));
+```
+
+### O padrão Singleton
+
+A variável global é um dos grandes fantasmas do programador orientado a objetos e os motivos já devem ser familiares. Variáveis globais amarram classes a contextos, minando o encapsulamento. Uma classe baseada em variáveis globais não pode ser retirada de uma aplicação e usada em outra sem, primeiro, assegurar que a nova aplicação defina, ela própria, as mesmas variáveis globais.
+
+Embora isso seja indesejável, a natureza desprotegida das variáveis globais pode ser um problema ainda maior. Ao começar a se basear em variáveis globais, talvez seja apenas uma questão de tempo até que uma de suas bibliotecas declare uma global que conflite com outra, declarada em algum outro lugar. O PHP é vulnerável a conflitos de nomes de classes, mas isso é muito pior. O PHP não avisará quando globais colidirem. A primeira coisa que se notará quanto a isso é quando o script começar a se comportar estranhamente.
+
+As globais continuam sendo uma tentação, entretanto. Isso ocorre porque há vezes nas quais o pecado inerente ao acesso global parece um preço que vale a pena pagar para dar a todas as classes acesso a um objeto.
+
+#### O problema
+
+Sistemas bem projetados geralmente passam instâncias de objetos mediante chamadas de método. Cada classe conserva sua independência do contexto maior, colaborando com outras partes do sistema por meio de linhas claras de comunicação. Porém, às vezes, descobre-se que isso obrigao uso de algumas classes como condutos para objetos que não lhes concernem, introduzindo dependências em nome do bom projeto.
+
+Imagine uma classe `Preferences` que armazene informação em nível de aplicação. Pode-se usar um objeto `Preferences` para armazenar dados, como strings DSN, raízes URLs, caminhos de arquivos e assim por diante. Esse ´o tipo de informação que vai variar de instalação para instalação. O objeto também pode ser usado como "quadro de notícias", um local central para mensagens que poderia ser gravado ou recuperado por objetos de outra forma não relacionados em um sistema.
+
+Passar um objeto `Preferences` de objeto para objeto pode nem sempre ser uma boa ideia. Muitas classes que não usam o objeto poderiam ser forçadas a recebê-lo simplesmente para que pudessem passá-lo adiante para outros objetos com os quais trabalham. Esse é apenas outro tipo de acoplamento.
+
+Também é preciso assegurar que todos os objetos no sistema estejam trabalhando com o mesmo objeto `Preferences`. Assim:
+
+- Um objeto `Preferences` deve estar disponível para qualquer objeto do siistema;
+- Um objeto `Preferences` não deve estar armazenando em uma variável hglobal, que pode ser sobrescrita;
+- Não deve haver mais do que um objeto `Preferences` em ação no sistema. Isso significa que o objeto `Y` pode gravar uma propriedade em `Preferences` e o objeto `Z` pode recuperar a mesma propriedade, sem que conversem diretamente entre si.
+
+#### Implementação
+
+O problema pode ser abordado começando por declarar o controle sobre a instanciação de objeto. Aqui, é criada uma classe que não pode ser instanciada de fora de si mesma. Isso pode soar difícil, mas é simplesmente uma questão de definir um construtor privado:
+
+```php
+class Preferences {
+    private $props = array();
+
+    private function __construct() {}
+
+    private function setProperty($key, $val) {
+        $this->props[$key] = $val;
+    }
+
+    public function getProperty($key) {
+        return $this->props[$key];
+    }
+}
+```
+
+Até aqui, a classe `Preferences` é inteiramente inútil. A restrição ao acesso foi levada a um nível absurdo. Devido ao fato de o construtor ser declarado como `private`, nenhum código cliente pode instanciar um objeto a partir dele. Os métodos `setProperty()` e `getProperty()` são, portanto, redundantes.
+
+Pode-se usar um método estático e uma propriedade estática para mediar a instanciação de objetos:
+
+```php
+class Preferences {
+    private $props = array();
+    private static $instance;
+
+    private function __construct() {}
+
+    public static function getInstance() {
+        if (empty(self::$instance)) {
+            self::$instance = new Preferences();
+        }
+
+        return self::$instance;
+    }
+
+    private function setProperty($key, $val) {
+        $this->props[$key] = $val;
+    }
+
+    public function getProperty($key) {
+        return $this->props[$key];
+    }
+}
+```
+
+A propriedade `$instance` é privada e estática, de forma que não pode ser acessada de fora da classe. Porém, o método `getInstance()` possui acesso. Pelo fato de o `getInstance()` ser público e estático, pode ser chamado pela classe a partir de qualquer ligar de um script:
+
+```php
+$pref = Preferences::getInstance();
+$pref->setProperty("name", "matt");
+unset($pref);
+
+$pref2 = Preferences::getInstance();
+print $pref2->getProperty("name"):
+```
+
+Um método estático não pode acessar propriedades de objetos, pois ele é, por definição, chamado no contexto de uma classe, e não de um objeto. Ele pode, poreém, acessar uma propriedade estática. Quando `getInstance()` é chamado, verifica-se a propriedade `Preferences::$instance`. Se ela estiver vazia, pode-se criar uma instância da classe `Preferences` e armazená-la na propriedade. A instância, então, retorna para o código solicitante. Pelo fato de o método estático `getInstance()` fazer parte da classe `Preferences`, não temos problema ao instanciar um objeto `Preferences`, embora o construtor seja privado. Veja:
+
+![Figura que exibe a descrição do padrão Singleton](images/fig27.png)
+
+#### Consequências
+
+Tanto `Singleton` quando variáveis globais podem ser mal usados. Devido ao fato de padrões `Singleton` poderem ser acessados de qualquer lugar de um sistema, eles podem servir para criar dependências que podem ser difíceis de depurar. Alterar um `Singleton` pode afetar as classes que o usam. Dependências não são um problema por si só. Afinal, cria-se uma dependência sempre se declara que um método requer um argumento de determinado tipo. O problema é que a natureza global do `Singleton` permite a um programador contornar as linhas de comunicação defnidas por interfaces de classes. Quando um `Singleton` é usado, a dependência esconde-se dentro de um método, não declarando-se na assinatura. Isso pode tornar mais difícil rastear os relacionamentos dentro de um sistema. Classes `Singleton` devem, portanto, ser distribuídas economicamente e com cuidado.
+
+O uso moderado do padrão `Singleton` pode melhorar o projeto de um sistema, evitando contorcionismos horríveis enquanto passa objetos desnecessariamente pelo sistema.
+
+Padrões `Singleton` representam uma melhoria no uso de variáveis globais em um contexto orientado a objetos. Não se pode sobrescrever um `Singleton` com um tipo errado de dado. Esse tipo de proteção é especialmente importante em PHP, que não suporta *namespaces*. Qualquer colisão de nomes será pega em tempo de compilação, terminando a execução do script.
+
+### O padrão Factory Method
+
+O projeto orientado a objetos enfatiza a classe abstrata sobre a implementação, ou seja, trabalha-se com generalizações, em vez de especializações. O padrão `Factory Method` aborda o problema de como criar instâncias de objetos quando seu código enfoca tipos abstratos. Deixe classes especialistas manipular a instanciação.
+
+#### O problema
+
+Imagine um projeto de organizador pessoal. Entre outros, gerencia-se objetos `Appointment`. O grupo de negócio forjou um relacionamento com outra empresa e deve comunicar dados de compromissos com ela usando um formato chamado `BloggsCal`. Outros formatos podem ser encontrados com o passar do tempo.
+
+Ficando no nível da interface, apenas, pod-se identificar dois participantes imediatamente. É necessário um codificador de dados que converta os objetos `Appoitment` em formato proprietário. Essa classe pode ser chamada de `ApptEncoder`. Também, é necessário um gerenciador de classes que recupere um codificador e, talvez, trabalhe com ele para comunicar um terceiro. Pode ser chamado de `CommsManager`. Usando a terminologia do padrão, o `CommsManager` é o criador e o `ApptEncoder` é o produto. Veja:
+
+![Figura que exibe a descrição do codificador abstrato e classes produtos](images/fig28.png)
+
+Para pegar uma `ApptEncoder` concreta de verdade pode-se solicitar que uma `ApptEncoder` fosse passada ao `CommsManager`, mas isso, simplesmente, protela o problema. E se instancia um objeto `BloggsApptEncoder` diretamente da classe `CommsManager`:
+
+```php
+abstract class ApptEncoder {
+    abstract function encode();
+}
+
+class BloggsApptEncoder extends ApptEncoder {
+    function encode() {
+        return "Appointment data encoded in BloggsCal format\n";
+    }
+}
+
+class MegaApptEncoder extends ApptEncoder {
+    function encode() {
+        return "Appointment data encoded in MegaCal format\n";
+    }
+}
+
+class CommsManager {
+    function getApptEncoder() {
+        return new BloggsApptEncoder();
+    }
+}
+```
+
+A classe `CommsManager` é responsável pela geração de objetos `BloggsApptEncoder`. Quando é solicitado converter o sistema para trabalhar com um novo formato chamado `MegaCal`, pode-se adicionar uma condição no método `CommsManager::getApptEncoder()`. Essa estratégia já foi usada antes. Uma nova implementação de `CommsManager` será construída para lidar com o formato `BloggsCal` e com o `MegaCal`:
+
+```php
+class CommsManager {
+    const BLOGGS = 1;
+    const MEGA = 2;
+    private $mode = 1;
+
+    function __construct($mode) {
+        $this->mode = $mode;
+    }
+
+    function getApptEncoder() {
+        switch ($this->mode) {
+            case (self::MEGA):
+                return new MegaApptEncoder();
+            default:
+                return new BloggsApptEncoder();
+        }
+    }
+}
+
+$comms = new CommsManager(CommsManager::MEGA);
+$apptEncoder = $comms->getApptEncoder();
+print $apptEncoder->encode();
+```
+
+O uso de *flags* constantes definem dois modos nos quais o script poderia ser executado: `MEGA` e `BLOGGS`. O elemento `switch` no método `getApptEncoder()` testa a propriedade `$mode` e instancia a implementação apropriada de `ApptEncoder`.
+
+Há pouco erro com esse tipo de abordagem. As condições são, às vezes, consideradas exemplos de problemas no código, mas a criação de objetos, em muitas oportunidades, requer uma condição em algum ponto. A presença de condições no código é um alerta para evitar otimismo. A classe `CommsManager` fornece funcionalidade para comunicar dados de calendário. Imagine que os protocolos necessitam o fornecimento de dados de cabeçalho e rodapé. O exemplo anterior acaba sendo estendido para suportar o método `getHeaderText()`:
+
+```php
+class CommsManager {
+    const BLOGGS = 1;
+    const MEGA = 2;
+    private $mode = 1;
+
+    function __construct($mode) {
+        $this->mode = $mode;
+    }
+
+    function getHeaderText() {
+        switch ($this->mode) {
+            case (self::MEGA):
+                return "MegaCal header\n";
+            default:
+                return "BloggsCal header\n";
+        }
+    }
+
+    function getApptEncoder() {
+        switch ($this->mode) {
+            case (self::MEGA):
+                return new MegaApptEncoder();
+            default:
+                return new BloggsApptEncoder();
+        }
+    }
+}
+```
+
+A necessidade de suportar a produção de cabeçalho levou a duplicação do teste condicional do protocolo. Tal fator será de difícil controle quando novos protocolos são adicionados, especialmente se também é adicionado um método `getFootedText()`. Resumindo o problema:
+
+- Não se sabe, até o momento da execução, o tipo de objeto que se precisa produzir (`BloggsApptEncoder` ou `MegaApptEncoder`);
+- É preciso ser capaz de adicionar novos tipos de produtos com relativa facilidade (suporte a SyncML é apenas um novo negócio);
+- Cada tipo de produto é associado com um contexto que requer outras operações personalizadas (`getHeaderText()` e `getFooterText()`).
+
+Adicionalmente, é notório o uso de declarações condicionais e já se sabe que elas são naturalmente substituíveis pelo polimorfismo. O padrão `Factory Method` permite o uso de herança e polimorfismo para encapsular a criação de produtos concretos. Em outras palavras, cria-se uma subclasse `CommsManager` para cada protocolo, cada um implementando o método `getApptEncoder()`.
+
+#### Implementação
+
+O padrão `Factory Method` separa as classes criadoras dos produtos projetados. O criador é uma classe fábrica que define um método para gerar um objeto produto. Se nenhuma implementação padrão for fornecida, deixa-se para as classes-filhas do criador a execução da instanciação. Geralmente, cada subclasse do criador instancia uma classe-filha produto paralela.
+
+Reprojeta-se `CommsManager` como uma classe abstrata. Dessa forma, mantém-se uma superclasse flexível e coloca-se todo o código específico nas subclasses concretas. Veja:
+
+![Figura que exibe a descrição do criador concreto e classes produtos](images/fig29.png)
+
+Código simplificado:
+
+```php
+abstract class ApptEncoder {
+    abstract function encode();
+}
+
+class BloggsApptEncoder extends AptEncoder {
+    function encode() {
+        return "Appoitment data encode in BloggsCal format\n";
+    }
+}
+
+abstract class CommsManager {
+    abstract function getHeaderText();
+    abstract function getApptEncoder();
+    abstract function getFooterText();
+}
+
+class BloggsCommsManager extends CommsManager {
+    function getHeaderText() {
+        return "BloggsCal header\n";
+    }
+
+    function getApptEncoder() {
+        return new BloggsApptEncoder();
+    }
+
+    function getFooterText() {
+        return "BloggsCal footer\n";
+    }
+}
+```
+
+O método `BloggsCommsManager::getApptEncoder()` retorna  um objeto `BloggsApptEncoder`. O código cliente chamando a `getApptEncoder` pode esperar um objeto do tipo `ApptEncoder` e não saberá, necessariamente, a respeito do produto concreto que recebeu. Em PHP 5 é uma questão de convenção impor o tipo de retorno. Daí, a impotância de documentar tipos de retorno ou, então, sinalizá-los mediante convenções de nomeclatura.
+
+Assim, quando há a necessidade de implementar `MegaCal`, suportá-la é simplesmente uma questão de escrever uma nova implementação para as classes abstratas. Veja:
+
+![Figura que exibe a descrição do projeto estendido para suportar um novo protocolo](images/fig30.png)
+
+#### Consequências
+
+As classes criadoras espelham a hierarquia de produtos. Essa é uma consequência comum do padrão `Factory Method` e que não agrada a alguns como um tipo especial de duplicação de código. Outra questão é a responsabilidade de que o padrão pudesse encorajar a criação desnecessária de subclasses. Se a única razão para criar subclasses de um criador for organizar o padrão `Factory Method`, é possível que se queira uma segunda opinião; é por isso que foi introduzido as restrições de cabeçalho e rodapé no exemplo.
+
+O exemplo focou apenas nos compromissos. Agora, ele tem que ser estendido para incluir itens "a fazer" e contatos. E se apresenta um novo problema. É necessário uma estrutura que lide com um conjunto de implementações relacionadas ao mesmo tempo. O padrão `Factory Method` é, muitas vezes, usado com o padrão `Abstract Factory`.
+
+### O padrão Abstract Factory
+
+Em grandes aplicações, é possível que seja necessário fábricas que produzam conjuntos relacionados de classes. O padrão `Abstract Factory` aborda esse problema.
+
+#### O problema
+
+O exemplo usado em `Factory Method` gerenciou a codificação em dois formatos, `BloggsCal` e `MegaCal`. Pode-se, agora, aumentar essa estrutura "horizontalmente", adicionando mais formatos de codificação para diferentes tipos de projeto PIM. Veja as famílias paralelas que serão trabalhadas:
+
+![Figura que exibe a descrição de três famílias de produtos](images/fig31.png)
+
+As classes `BloggsCal` não são relacionandas entre si por herança - embora elas possamimplementar uma interface comum - mas são funcionalmente paralelas. Se o sistema estiver trabalhando corretamente com `BloggsTtdEncoder`, também deve estar trabalhando com `BloggsContactEncoder`.
+
+Para saber como proceder, pode-se começar com a interface, como foi feito com o padrão `Factory Method`:
+
+![Figura que exibe a descrição de um criador abstrato e seus produtos abstratos](images/fig32.png)
+
+#### Implementação
+
+A classe abstrata `CommsManager` define a interface para gerar cada um dos três produtos (`ApptEncoder`, `TtdEncoder` e `ContactEncoder`). É preciso implementar um criador concreto para realmente gerar os produtos concretos de determinada família. Isso é feito com o formato `BloggsCal`:
+
+![Figura que exibe a descrição da adição de um criador concreto e alguns produtos concretos](images/fig33.png)
+
+Veja uma versão de código de `CommsManager` e `BloggsCommsManager`:
+
+```php
+abstract class CommsManager {
+    abstract function getHeaderText();
+    abstract function getApptEncoder();
+    abstract function getTtdEncoder();
+    abstract function getContactEncoder();
+    abstract function getFooterText();
+}
+
+class BloggsCommsManager extends CommsManager {
+    function getHeaderText() {
+        return "BloggsCal header\n";
+    }
+
+    function getApptEncoder() {
+        return new BloggsApptEncoder();
+    }
+
+    function getTtdEncoder() {
+        return new BloggsTtdEncoder();
+    }
+
+    function getContactEncoder() {
+        return new BloggsContactEncoder();
+    }
+
+    function getFooterText() {
+        return "BloggsCal footer\n";
+    }
+}
+```
+
+O padrão `Factory Method` foi usado nesse exemplo. O `getContact()` é abstrato em `CommsManager` e implementado em `BloggsCommsManager`. Padrões de projeto tendem a trabalhar juntos dessa forma: um padrão criando o contexto que leva a si próprio e a outro. Na figura seguinte foi adicionado o suporte ao formato `MegaCal`:
+
+![Figura que exibe a descrição da adição de criadores concretos e alguns produtos concretos](images/fig34.png)
+
+#### Consequências
+
+Primeiramente, o sistema é desacoplado dos detalhes da implementação. Pode-se adicionar ou remover qualquer número de formatos de codificação ao exemplo, sem causar um golpe no efeito.
+
+Foi imposto o agrupamento de elementos funcionalmente relacionados do sistema. Assim, o uso de `BloggsCommsManager` assegura que somente classes relacionadas a `BloggsCal` serão trabalhadas.
+
+Adicionar novos produtos pode ser trabalhoso. É preciso não apenas criar implementações concretas do novo produto, como também reformular o criador abstrato e cada uma das implementações concretas feitas para suportá-lo.
+
+Muitas implementações do padrão `Abstract Factory` usam o padrão `Factory Method`, pois a maioria dos exemplos é escrita em Java ou C++. O PHP, no entanto, não impõe um tipo de retorno para um método, permitindo alcançar uma flexibilidade.
+
+EM vez de criar métodos separados para cada `Factory Method`, pode-se criar um único método `make()` que use um argumento *flag* para determinar qual objeto retornar:
+
+```php
+abstract class CommsManager {
+    const APPT = 1;
+    const TTD = 2;
+    const CONTACT = 3;
+    abstract function getHeaderText();
+    abstract function make($flag_int);
+    abstract function getFooterText();
+}
+
+class BloggsCommsManager extends CommsManager {
+    function getHeaderText() {
+        return "BloggsCal header\n";
+    }
+
+    function make($flag_int) {
+        switch ($flag_int) {
+            case self::APPT:
+                return new BloggsApptEncoder();
+            case self::CONTACT:
+                return new BloggsContactEncoder();
+            case self::TTD:
+                return new BloggsTtdEncoder();
+        }
+    }
+
+    function getFooterText() {
+        return "BloggsCal footer\n";
+    }
+}
+```
+
+Agora, a classe ficou mais compacta, mas a um custo considerável. Usando `Factory Mathod`, definiu-se uma interface clara e se impôs que todos os objetos-fábrica concretos a honrem. Usando um único método `make`, deve-se lembrar de suportar todos os objetos produtos em todos os criadores concretos. Também foi introduzidas condições paralelas, já que cada criador concreto deve implementar os mesmos testes de *flag*. Uma classe cliente não pode ter certeza de que criadores concretos gerem todos os produtos, pois a parte interna de `make()` é uma questão de escolha de cada caso.
+
+Por outro lado, pode-se construir criadores mais flexíveis. A classe criadora-base pode fornecer um método `make()` que garanta uma implementação padrão de cada família de produtos. Filhas concretas poderiam, então, modificar esse comportamento seletivamente. Dependeria de implementar classes criadoras para chamar o método `make()` padrão após fornecer sua própria implementação.
+
+### O padrão Prototype
+
+O susrgimento de hierarquias de herança paralelas pode ser um problema com o padrão `Factory Method`. Esse é um tipo de acoplamento que deixa alguns programadores desconfortáveis. Sempre que se adiciona uma família de produtos, é forçado a criar um criador concreto associado; os codificadores `BloggsCal` são comparados por `BloggsCommsManager`, por exemplo. Em um sistema que cresce rapidamente para englobar muitos produtos, manter esse tipo de relacionamento pode, rapidamente, se tornar cansativo.
+
+Uma forma de evitar essa dependência é usar a palavra-chave `clone` do PHP para duplicar produtos concretos já existentes. Essas classes de produtos concretos, então, tornam-se elas mesmas a base da sua própria geração. Esse é o padrão `Prototype`. Ele permite substituir herança por composição, e esta, por sua vez, promove flexibilidade em tempo de execução e reduz o número de classes que se deve criar.
+
+#### O problema
+
+Imagine um jogo Web no estilo Civilization, no qual unidades operam em uma grade de placas. Cada placa pode representar mar, planícies ou florestas. O tipo do terreno restringe o movimento e as habilidades de combate das unidades ocupando a placa. Pode-se ter um objeto `TerrainFactory`, que serve objetos `Sea`, `Forest` e `Plains`. É permitido ao usuário escolher entre os ambientes completamente diferentes, de modo que o objeto `Sea` seja uma superclasse abstrata impementada por `MarsSea` e `EarthSea`. Objetos `Forest` e `Plains` são implementados de forma semelhante. As forças aqui se prestam ao padrão `Abstract Factory`. Existem hierarquias distintas de produtos (`Sea`, `Plains`, `Forest`) com forte relacionamento de família permeando herança (`Erath` e `Mars`). A figura seguinte apresenta um diagrama de classes que mostra como se pode distribuir os padrões `Abstract Factory` e `Factory Method` para trabalhar com estes produtos:
+
+![Figura que exibe a descrição de como lidar com terrenos com o método Abstract Factory](images/fig35.png)
+
+A herança foi usada para agrupar a família de terrenos que uma fábrica vai gerar. Essa é uma soluçnao que pode ser utilizada, mas requer uma hierarquia grande e é relativamente inflexível. Quando não se quer hierarquias de herança paralelas, e quando é necessário maximizar flexibilidade em tempo de execução, o padrão `Prototype` pode ser usado em uma variação poderosa no padrão `Abstract Factory`. 
+
+#### Implementação
+
+Quando se trabalha com os padrões `Abstract Factory`/`Factory Method`, deve-se decidir em algum momentos com qual criador concreto deseja-se trabalhar, provavelmente verificando algum tipo de *flag* de preferência. Como se deve fazer isso de qualquer forma, por que não, simplesmente, criar uma classe fábrica que armazene produtos concretos e povoá-la durante a inicialização? Pode-se cortar algumas classes e aproveitar outros benefícios. Aqui está um simples código que usa o padrão `Prototype` em uma fábrica:
+
+```php
+class Sea {}
+class EarthSea extends Sea {}
+class MarsSea extends Sea {}
+
+class Plains {}
+class EarthPlains extends Plains {}
+class MarsPlains extends Plains {}
+
+class Forest {}
+class EarthForest extends Forest {}
+class MarsForest extends Forest {}
+
+class TerrainFactory {
+    private $sea;
+    private $plains;
+    private $forest;
+
+    function __construct(Sea $sea, Plains $plains, Forest $forest) {
+        $this->sea = $sea;
+        $this->plains = $plains;
+        $this->forest = $forest;
+    }
+
+    function getSea() {
+        return clone $this->sea;
+    }
+
+    function getPlains() {
+        return clone $this->plains;
+    }
+
+    function getForest() {
+        return clone $this->forest;
+    }
+}
+
+$factory = new TerrainFactory(new EarthSea(), new EarthPlains(), new EarthForest());
+print_r($factory->getSea());
+print_r($factory->getPlains());
+print_r($factory->getForest());
+```
+
+Foi carregado uma `TerrainFactory` concreta com instâncias do objeto `Sea` que foi colocado em cache durante a inicialização. Não apenas foram gravadas algumas classes, mas também trouxeram flexibilidade adicional. Agora, jogar um jogo em um novo planeta com mares e florestas parecidos com os da Terra, mas com planícias de Marte não necessita da escrita de uma nova classe criadora. Pode-se, simpesmente, alterar a mistura das classes que foram adicionadas a `TerrainFactory`:
+
+```php
+$factory = new TerrainFactory(new EarthSea(), new MarsPlains(), new EarthForest());
+```
+
+Assim, o padrão `Prototype` permite que se aproveite a flexibilidade conseguida pela composição. No entanto, não só isso. Devido ao fato de se armazenar e clonar objetos em tempo de execução, será reproduzido o estado do objeto quando se gera novos produtos. Imagine que objetos `Sea` possuam uma propriedade `$navigability`. A propriedade influencia a quantidade de energia em movimento extraída por uma placa de mar. Ela pode ser configurada ajustando-se o nível de dificuldade de um jogo:
+
+```php
+class Sea {
+    private $navigability = 0;
+
+    function __construct($navigability) {
+        $this->navigability = $navigability;
+    }
+}
+```
+
+Agora, quando o objeto `TerrainFactory` é inicializado, é possível adicionar um objeto `Sea` com um modificador de navegabilidade. Este, então, permanecerá verdadeiro para todos os objetos `Sea` servidos por `TerrainFactory`.
+
+```php
+$factory = new TerrainFactory(new EarthSea(-1), new EarthPlains(), new EarthForest());
+```
+
+Essa flexibilidade também é aparente quando o objeto que se deseja gerar for composto por outros objetos. Talvez todos os objetos `Sea` possam conter objetos `Resource` (`FishResource`, `OilResource`, etc.). De acordo com uma *flag* de preferência, todos os objetos `Sea` podem receber um `FishResource` por padrão. Importa lembrar de que, se os produtos referenciarem outros objetos, é preciso implementar um método `__clone()` para assegurar que se fez uma cópia profunda.
+
+> **Observação:** A palavra-chave `clone` gera uma cópia superficial de qualquer objeto ao qual for aplicada. Isso significa que o objeto produto terá as mesmas propriedades do objeto-fonte. Se alguma das propriedades do objeto-fonte forem objetos, então estes não serão copiados para o produto. Em vez disso, o produto referenciará as mesmas propriedades do objeto. Depende do programador alterar esse padrão e personalizar o objeto, copiando de alguma outra forma, implementando um método `__clone()`. Este é chamado automaticamente quando a palavra-chave `clone` for usada.
+
+```php
+class Contained {}
+
+class Container {
+    public $contained;
+
+    function __construct() {
+        $this->contained = new Contained();
+    }
+
+    function __clone() {
+        // Ensure that cloned object holds a clone fo self::$contained and not a reference to it
+        $this->contained = clone $this->contained;
+    }
+}
+```
+
+#### Mas, isso é trapacear!
+
+Alguns padrões, dissimuladamente, esquivarem-se da tomada de decisão da criação de objetos, se não da própria criação.
+
+O padrão `Singleton` não é o culpado. A lógica da criação de objetos é interna e sem ambiguidades. O padrão `Abstract Factory` agrupa a criação de famílias de produtos em criadores concretos distintos. A questão é decidir com qual criador concreto trabalhar. Problema semelhante é apresentado pelo padrão `Prototype`. Ambos os padrões manipulam a criação de objetos, mas protelam a decisão sobre qual objeto, ou grupo de objetos, deve ser criado.
+
+O criador concreto que um sistema escolhe é, muitas vezes, decidido de acordo com o valor de uma opção de configuração de algum tipo. Esta poderia estar localizada em um banco de dados, um arquivo de configuração, um arquivo de servidor (.htaccess, do Apache) ou poderia ser codificada explicitamente como uma variável ou propriedade PHP. Devido ao fato de as aplicações PHP serem configuradas para solicitação, é preciso colocar em script a inicialização, sendo tão fácil quanto possível. Por esse motivo, muitas vezes pode-se optar por *flags* de configuração explícitas em código PHP. Isso pode ser feito à mão ou escrevendo um script que auto-gere um arquivo de classe. Veja uma classe crua que inclui um *flag* para cada tipo de protocolo de calendário:
+
+```php
+class Settings {
+    static $COMMSTYPE = 'Mega';
+}
+```
+
+Agora, com uma *flag*, pode-se criar uma classe que a use para decidir qual `CommsManager` servir na solicitação. É muito comum ver um `Singleton` usado junto ao padrão `Abstract Factory`, então:
+
+```php
+require_once('Settings.php');
+
+class AppConfig {
+    private static $instance;
+    private $commsManager;
+
+    private function __construct() {
+        // will run once only
+        $this->init();
+    }
+
+    private function init() {
+        switch (Settings::$COMMSTYPE) {
+            case 'Mega':
+                $this->commsManager = new MegaCommsManager();
+                break;
+            default:
+                $this->commsManager = new BloggsCommsManager();
+        }
+    }
+
+    public static function getInstance() {
+        if (empty(self::$instance)) {
+            self::$instance = new self();
+        }
+
+        return self::$instance;
+    }
+
+    public function getCommsManager() {
+        return $this->commsManager;
+    }
+}
+```
+
+A classe `AppConfig` é um `Singleton` padrão. Por esse motivo, pode-se obter uma instância de `AppConfig` em qualquer lugar do sistema e sempre a obteremos. O método `init()` é chamado pelo construtor da classe e, portanto, só é executado uma vez em um processo. Ele testa a propriedade `Settings::$COMMSTYPE`, instanciando um objeto `CommsManager` concreto, de acordo com o seu valor. Agora, o script pode obter um objeto `CommsManager` e trabalhar com ele sem nem mesmo conhecer suas implementações concretas, ou as classes concretas que elas geram:
+
+```php
+$commsMgr = AppConfig::getInstance()->getCommsManager();
+$commsMgr->getApptEncoder()->encode();
+```
 
 ## Projetando relações de objetos
+### Estruturando classes para permitir objetos flexíveis
+### O padrão Composite
+#### O problema
+#### Implementação
+#### Consequências
+#### Composite em resumo
 
+### O padrão Decorator
+#### O problema
+#### Implementação
+#### Consequências
 
+### O padrão Facade
+#### O problema
+#### Implementação
+#### Consequências
+
+## Executando e representando tarefas
+### O padrão Interpreter
+#### Implementação
+#### Problemas com interpreter
+
+### O padrão Strategy
+#### O problema
+#### Implementação
+### O padrão Observer
+#### Implementação
+
+### O padrão Visitor
+#### O problema
+#### Implementação
+#### Problemas com o Visitor
+
+### O padrão Command
+#### O problema
+#### Implementação
+
+## Padrões enterprise
+### Introdução
+### Trapaceando antes de começar
+#### Registry
+##### O problema
+##### Implementação
+##### Registry, escopo e PHP
+##### Consequências
 
 ## Prática
-- A boa (e a má) prática
-- Uma introdução ao PEAR
-- Gerando documentação com o phpDocumentor
-- Controle de versões com CVS
-- Construção automática com Phing
+### A boa (e a má) prática
+### Uma introdução ao PEAR
+### Gerando documentação com o phpDocumentor
+### Controle de versões com CVS
+### Construção automática com Phing
 
 ## Conclusão
 - Objetos, padrões e prática
